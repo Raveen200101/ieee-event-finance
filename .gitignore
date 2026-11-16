@@ -1,0 +1,12 @@
+frontend/node_modules/
+frontend/dist/
+backend/target/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+application-local-secrets.properties
+*firebase-adminsdk*.json
+firebase-service-account*.json
+private-documents/
