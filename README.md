@@ -77,8 +77,7 @@ run the following from backend.
 .\mvnw.cmd dependency:tree "-Dincludes=com.mysql:mysql-connector-j,org.flywaydb:*,org.postgresql:*"
 ```
 
-The starter currently contains no migration SQL or entity ID mappings.
-Future migrations belong in backend/src/main/resources/db/migration.
+V1__create_events.sql creates the events table. Future migrations belong in backend/src/main/resources/db/migration. Keep applied migration files unchanged.
 
 ### Run from your IDEs
 
@@ -95,3 +94,33 @@ npm.cmd ci followed by npm.cmd run dev.
 ### Bootstrap verification
 
 Verified on 2026-11-23 with Java 21 and local MySQL. Backend compilation and the generated context test passed. Frontend build and lint passed. Spring Boot started successfully, and both the direct and Vite-proxied health endpoints returned UP. Credentials must be supplied locally when starting the application.
+
+## Event management
+
+The backend follows Spring MVC with controller, dto, service, repository,
+entity, exception, and config packages under lk.sliit.ieee.eventfinance.
+Controllers handle HTTP and validation, services handle transactions and
+mapping, repositories access MySQL, and DTOs define request/response data.
+
+- POST /api/events creates an event and returns HTTP 201 with its Location.
+- GET /api/events lists events by event date descending, then ID descending.
+- GET /api/events/{id} returns one event, or HTTP 404 if it does not exist.
+
+Event fields are name (required, up to 150 characters), description (up to
+2000 characters, an empty string is allowed), eventDate (required ISO date),
+venue (required, up to 255 characters), and plannedBudget (required,
+nonnegative, up to 13 integer digits and 2 decimal places, in LKR).
+MySQL uses an auto-increment BIGINT ID and DECIMAL(15,2) for the budget.
+Dates can be past or future.
+
+During this local milestone, event endpoints are publicly accessible and
+excluded from CSRF checks. Other endpoints retain Spring Security protection,
+with health checks public. Add authentication and authorization before
+deploying event management for shared use.
+
+The React page supports creating events, listing them, and opening event
+details. Reloading retrieves saved records from MySQL.
+
+Run the Maven test command above with MySQL configured. EventApiTests checks
+the real HTTP endpoints, persistence, validation, malformed requests, and
+missing records, and removes its own created record afterward.
