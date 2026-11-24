@@ -149,3 +149,27 @@ cover these nested expense endpoints.
 
 ExpenseApiTests verifies persistence, event isolation, exact totals,
 overspending, validation, and missing events. It removes its own test data.
+
+## Income tracking
+
+Select an event to record sponsorships, registration fees, donations, or
+other income. Each record requires description (up to 500 characters),
+source (up to 150 characters), amount (at least 0.01 with up to 13 integer
+digits and 2 decimal places), and incomeDate (ISO date). Source is free
+text with common suggestions. Dates can be past or future.
+
+- POST /api/events/{eventId}/incomes records income and returns HTTP 201.
+- GET /api/events/{eventId}/incomes returns incomes, totalIncome,
+  totalExpenses, and balance. Missing events return HTTP 404.
+
+Balance equals recorded income minus recorded expenses and may be negative.
+Planned budget remains the spending target used by expense tracking.
+Amounts use MySQL DECIMAL and Java BigDecimal. Records sort by income date
+descending, then ID descending. Adding expenses refreshes the income
+panel's financial totals.
+
+V3__create_incomes.sql creates the incomes table with an event foreign key
+and positive-amount constraint. Existing records and applied migrations
+remain intact. Income endpoints use the existing event API development
+access rules. IncomeApiTests verifies persistence, validation, event
+isolation, decimal totals, negative balances, and missing events.
