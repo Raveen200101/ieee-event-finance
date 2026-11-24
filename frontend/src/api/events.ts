@@ -1,6 +1,6 @@
 import type { CreateEventRequest, EventRecord } from '../types/event'
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, options)
   if (!response.ok) {
     const problem = await response.json().catch(() => null)
