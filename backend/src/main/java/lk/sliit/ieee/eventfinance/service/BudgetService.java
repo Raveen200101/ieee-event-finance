@@ -17,11 +17,13 @@ public class BudgetService {
     private final EventRepository events;
     private final BudgetCategoryRepository budgets;
     private final ExpenseRepository expenses;
+    private final PurchaseGroupRepository purchases;
 
-    public BudgetService(EventRepository events, BudgetCategoryRepository budgets, ExpenseRepository expenses) {
+    public BudgetService(EventRepository events, BudgetCategoryRepository budgets, ExpenseRepository expenses, PurchaseGroupRepository purchases) {
         this.events = events;
         this.budgets = budgets;
         this.expenses = expenses;
+        this.purchases = purchases;
     }
     private Event event(Long id) {
         return events.findById(id).orElseThrow(() -> new EventNotFoundException(id));
@@ -47,7 +49,11 @@ public class BudgetService {
     }
     @Transactional
     public EventBudgetResponse delete(Long eventId, Long id) {
-        budgets.delete(category(eventId, id));
+        var category = category(eventId, id);
+        if (purchases.existsByBudgetCategoryId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This category is linked to purchase groups. Keep its allocation and edit the amount instead.");
+        }
+        budgets.delete(category);
         return findByEvent(eventId);
     }
     public EventBudgetResponse findByEvent(Long eventId) {

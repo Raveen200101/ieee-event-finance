@@ -8,6 +8,7 @@ import { EventOverview } from './components/EventOverview'
 import { ExpensePanel } from './components/ExpensePanel'
 import { IncomePanel } from './components/IncomePanel'
 import { BudgetPanel } from './components/BudgetPanel'
+import { PurchasePanel } from './components/PurchasePanel'
 import type { EventRecord } from './types/event'
 import type { EventExpenses } from './types/expense'
 import type { EventIncomes } from './types/income'
@@ -100,7 +101,7 @@ function App() {
     && (!term || event.term === term),
   )
   const title = page === 'new' ? 'Create event' : page === 'events' ? 'Events'
-    : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
+    : page === 'purchases' ? 'Purchase groups' : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
 
   return <AppShell events={events} selected={selected} page={page} term={displayTerm}>
     <p className="breadcrumb">{selected ? `EVENTS / ${selected.name.toUpperCase()} / ${title.toUpperCase()}` : `CHAPTER / ${title.toUpperCase()}`}</p>
@@ -136,6 +137,7 @@ function App() {
       {financeError && <p role="alert" className="error">Financial data could not be loaded. {financeError}</p>}
       {page === 'event' && <EventOverview event={selected} expenses={expenses[selected.id]} income={income} />}
       {page === 'budget' && <BudgetPanel key={selected.id} eventId={selected.id} />}
+      {page === 'purchases' && <PurchasePanel key={selected.id} eventId={selected.id} />}
       {page === 'expenses' && <section className="panel"><ExpensePanel key={selected.id} eventId={selected.id} onSaved={() => setRevision((value) => value + 1)} /></section>}
       {page === 'income' && <section className="panel"><IncomePanel key={selected.id} eventId={selected.id} revision={revision} /></section>}
     </>}

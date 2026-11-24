@@ -224,3 +224,48 @@ Run the backend with the existing Java 21 and MySQL environment variables,
 then start Vite as described above. BudgetApiTests uses that MySQL database
 and removes its own records. Run `.\mvnw.cmd test` in backend, and
 `npm.cmd run build` plus `npm.cmd run lint` in frontend.
+
+## Purchase groups and quotations
+
+Open an event and choose **Purchase groups** (/#/events/{id}/purchases), or
+**Compare quotations** on Event Overview. First create a saved budget category
+in Planned budget, then create a purchase group such as Event T-shirts linked
+to that category. Add supplier quotations with quantity, unit price in LKR,
+and optional notes. Total equals quantity × unit price; enter prices including
+applicable charges. Attachments and role-based approvals are future work.
+
+Each group can have one preferred quotation. Selecting another replaces the
+previous preference; selection can also be cleared. Editing a quotation clears
+its preference so revised terms must be selected again. Removing a selected
+quotation clears that selection. Group/category links remain fixed in this
+milestone. A budget category linked to purchase groups cannot be removed;
+its owner and allocation amount can still be edited.
+
+Category comparisons sum preferred quotations from every group linked to that
+category. Negative remaining amounts show an over-budget warning. These are
+purchasing plans, and never create an expense or change income/balance totals.
+Record actual spending separately using the matching expense category.
+Actual expenses are not subtracted again from this quotation comparison.
+
+API prefix: `/api/events/{eventId}/purchase-groups`:
+
+- GET lists groups, quotations and category budget comparisons.
+- POST creates a group using name, budgetCategoryId and optional notes (201).
+- POST `/{groupId}/quotations` adds supplier, quantity, unitPrice, optional notes (201).
+- PUT `/{groupId}/quotations/{id}` updates quotation terms.
+- DELETE `/{groupId}/quotations/{id}` removes a quotation.
+- PUT `/{groupId}/selection/{id}` selects a quotation.
+- DELETE `/{groupId}/selection` clears the preference.
+
+Names/suppliers accept up to 150 characters, notes up to 1000, quantity is an
+integer from 1 to 1,000,000, unitPrice is 0.01–9999999999999.99 with two decimal
+places. Missing or cross-event/category/group references return 404. Quotation
+writes lock their purchase group to serialize concurrent preference changes.
+Development access rules continue to apply until sign-in is implemented.
+
+V6__create_purchase_groups_and_quotations.sql adds two tables and preserves
+existing migrations and data. Restart the Java 21 backend with the documented
+MySQL environment variables to apply it, then run Vite normally. No new
+dependencies are needed. `PurchaseApiTests` checks decimal totals, selection,
+concurrent selection, validation, event/group isolation, shared-category totals,
+and expense preservation, and removes its own test records.
