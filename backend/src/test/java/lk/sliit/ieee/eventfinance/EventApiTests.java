@@ -65,6 +65,31 @@ class EventApiTests {
         assertEquals(404, get("/api/events/0").statusCode());
     }
 
+
+    @Test
+    void persistsEventSetupDetailsAndValidatesParticipants() throws Exception {
+        HttpResponse<String> response = post("""
+                {"name":"Setup details test","description":"","eventDate":"2026-12-01",
+                 "venue":"SLIIT","plannedBudget":0,"term":"2026 / 2027",
+                 "financeLead":"Test Lead","status":"In progress","expectedParticipants":100}
+                """);
+        assertEquals(201, response.statusCode(), response.body());
+        long id = mapper.readTree(response.body()).get("id").asLong();
+        try {
+            JsonNode saved = mapper.readTree(get("/api/events/" + id).body());
+            assertEquals("2026 / 2027", saved.get("term").asText());
+            assertEquals("Test Lead", saved.get("financeLead").asText());
+            assertEquals("In progress", saved.get("status").asText());
+            assertEquals(100, saved.get("expectedParticipants").asInt());
+        } finally {
+            repository.deleteById(id);
+        }
+        assertEquals(400, post("""
+                {"name":"Invalid setup","description":"","eventDate":"2026-12-01",
+                 "venue":"SLIIT","plannedBudget":0,"status":"Unknown","expectedParticipants":-1}
+                """).statusCode());
+    }
+
     private HttpResponse<String> post(String body) throws Exception {
         return client.send(HttpRequest.newBuilder(uri("/api/events"))
                 .header("Content-Type", "application/json")
