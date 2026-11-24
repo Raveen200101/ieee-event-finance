@@ -23,6 +23,9 @@ public class EventService {
     public EventResponse create(CreateEventRequest request) {
         Event event = new Event(request.name().strip(), request.description().strip(),
                 request.eventDate(), request.venue().strip(), request.plannedBudget());
+        event.setSetupDetails(request.term() == null ? null : request.term().strip(),
+                request.financeLead() == null ? null : request.financeLead().strip(),
+                request.status() == null ? "Planning" : request.status(), request.expectedParticipants());
         return toResponse(repository.save(event));
     }
 
@@ -37,6 +40,7 @@ public class EventService {
 
     private EventResponse toResponse(Event event) {
         return new EventResponse(event.getId(), event.getName(), event.getDescription(),
-                event.getEventDate(), event.getVenue(), event.getPlannedBudget());
+                event.getEventDate(), event.getVenue(), event.getPlannedBudget(), event.getTerm(),
+                event.getFinanceLead(), event.getStatus(), event.getExpectedParticipants());
     }
 }

@@ -9,5 +9,9 @@ public record CreateEventRequest(
     @NotNull @Size(max = 2000) String description,
     @NotNull LocalDate eventDate,
     @NotBlank @Size(max = 255) String venue,
-    @NotNull @DecimalMin("0.00") @Digits(integer = 13, fraction = 2) BigDecimal plannedBudget
+    @NotNull @DecimalMin("0.00") @Digits(integer = 13, fraction = 2) BigDecimal plannedBudget,
+    @Size(max = 30) String term,
+    @Size(max = 150) String financeLead,
+    @Pattern(regexp = "Planning|In progress|Completed|Archived") String status,
+    @PositiveOrZero Integer expectedParticipants
 ) {}

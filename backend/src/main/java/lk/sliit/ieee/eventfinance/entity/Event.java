@@ -26,6 +26,17 @@ public class Event {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal plannedBudget;
 
+    @Column(length = 30)
+    private String term;
+
+    @Column(length = 150)
+    private String financeLead;
+
+    @Column(nullable = false, length = 20)
+    private String status = "Planning";
+
+    private Integer expectedParticipants;
+
     protected Event() {}
 
     public Event(String name, String description, LocalDate eventDate, String venue, BigDecimal plannedBudget) {
@@ -35,6 +46,18 @@ public class Event {
         this.venue = venue;
         this.plannedBudget = plannedBudget;
     }
+
+    public void setSetupDetails(String term, String financeLead, String status, Integer expectedParticipants) {
+        this.term = term;
+        this.financeLead = financeLead;
+        this.status = status;
+        this.expectedParticipants = expectedParticipants;
+    }
+
+    public String getTerm() { return term; }
+    public String getFinanceLead() { return financeLead; }
+    public String getStatus() { return status; }
+    public Integer getExpectedParticipants() { return expectedParticipants; }
 
     public Long getId() { return id; }
     public String getName() { return name; }

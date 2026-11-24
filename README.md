@@ -173,3 +173,22 @@ and positive-amount constraint. Existing records and applied migrations
 remain intact. Income endpoints use the existing event API development
 access rules. IncomeApiTests verifies persistence, validation, event
 isolation, decimal totals, negative balances, and missing events.
+
+## Figma event screens
+
+The Events, Create Event, and Event Overview pages follow the supplied
+screen exports. Start at /#/events. Search and status/term filters operate
+on saved events; selecting a row opens its overview. Browser back/forward
+navigation is supported. Expense and income entry remain available from
+the sidebar after selecting an event.
+
+V4__add_event_setup_details.sql adds optional ExCom term, finance lead,
+and expected participants, plus an event status defaulting to Planning.
+Older requests remain valid, and existing records retain their data.
+Supported statuses are Planning, In progress, Completed, and Archived.
+
+The interface uses recorded expenses for actual spending. Bank transfers,
+verified amounts, category budget allocations/owners, documents, Excel
+reports, and role-based identity are still pending, and their unavailable
+actions or values are marked accordingly. Local development identity is
+shown in place of the mock Chair account from the design.
