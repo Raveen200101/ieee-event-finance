@@ -188,7 +188,39 @@ Older requests remain valid, and existing records retain their data.
 Supported statuses are Planning, In progress, Completed, and Archived.
 
 The interface uses recorded expenses for actual spending. Bank transfers,
-verified amounts, category budget allocations/owners, documents, Excel
+verified amounts, documents, Excel
 reports, and role-based identity are still pending, and their unavailable
 actions or values are marked accordingly. Local development identity is
 shown in place of the mock Chair account from the design.
+
+## Planned budget
+
+Select an event, then **Planned budget** in the sidebar (/#/events/{id}/budget).
+Add categories with a responsible person's name and a planned amount in LKR.
+Edit owners/amounts or remove allocations. Names remain fixed while editing;
+removing an allocation never deletes expenses. Owners are free text until team
+membership is implemented. Category names match expense categories ignoring
+case and surrounding spaces; use the same name when entering expenses.
+
+The page and event overview compare category plans with recorded expenses,
+including categories without allocations. Amounts use DECIMAL/BigDecimal.
+Zero allocations are allowed; negative amounts or more than two decimal places
+are rejected. Duplicate categories within an event return HTTP 409. Category
+allocations may exceed the event spending target, with a visible warning.
+
+- GET /api/events/{eventId}/budget returns allocations, actual spending,
+  remaining amounts, totalAllocated and unallocatedBudget.
+- POST /api/events/{eventId}/budget accepts category (1–50 characters),
+  owner (1–150 characters), plannedAmount (0–9999999999999.99), returns 201.
+- PUT /api/events/{eventId}/budget/{id} updates owner and plannedAmount.
+- DELETE /api/events/{eventId}/budget/{id} removes an allocation.
+
+Missing events or allocations belonging to another event return 404.
+V5__create_budget_categories.sql creates the new table on backend startup;
+earlier migrations and existing financial records are preserved. Development
+access rules continue to apply; sign-in and role enforcement remain pending.
+
+Run the backend with the existing Java 21 and MySQL environment variables,
+then start Vite as described above. BudgetApiTests uses that MySQL database
+and removes its own records. Run `.\mvnw.cmd test` in backend, and
+`npm.cmd run build` plus `npm.cmd run lint` in frontend.
