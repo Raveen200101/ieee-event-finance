@@ -81,6 +81,10 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .balance-line { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 24px 0; font-size: 13px; }
 .balance-line span { color: var(--muted); font-size: 11px; }
 .error { color: #b42332; }
+.budget-form { margin-top: 24px; }
+.budget-table { min-width: 850px; }
+.budget-table td:nth-child(2) { min-width: 140px; }
+.budget-table td:nth-child(n+3) { white-space: nowrap; }
 dl { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; }
 dt { font-weight: 500; color: var(--muted); }
 dd { margin: 0; }
