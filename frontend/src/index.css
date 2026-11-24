@@ -36,3 +36,8 @@ dd { margin: 0; }
   .layout { grid-template-columns: 1fr; }
   main { padding: 24px 16px; }
 }
+
+.expense-panel { margin-top: 24px; border-top: 1px solid #d8e2eb; padding-top: 12px; }
+.expense-list { list-style: none; padding: 0; display: grid; gap: 12px; }
+.expense-list li { display: grid; gap: 6px; padding: 12px; background: #f4f7fa; border-radius: 6px; overflow-wrap: anywhere; }
+.expense-list span { font-size: .9rem; }

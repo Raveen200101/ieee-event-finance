@@ -124,3 +124,28 @@ details. Reloading retrieves saved records from MySQL.
 Run the Maven test command above with MySQL configured. EventApiTests checks
 the real HTTP endpoints, persistence, validation, malformed requests, and
 missing records, and removes its own created record afterward.
+
+## Expense tracking
+
+Open an event to add expenses and view total spending and the remaining
+budget in LKR. Spending above the planned budget is allowed and displayed
+as an over-budget amount.
+
+- POST /api/events/{eventId}/expenses records an expense and returns HTTP 201.
+- GET /api/events/{eventId}/expenses returns the expense list, plannedBudget,
+  totalSpent, and remainingBudget. Missing events return HTTP 404.
+
+Each expense requires description (up to 500 characters), category (up to
+50 characters), amount (at least 0.01, up to 13 integer digits and 2 decimal
+places), and expenseDate (ISO date). Category is free text with common
+suggestions in the UI. Dates can be past or future. Lists sort by expense
+date descending, then ID descending.
+
+V2__create_expenses.sql adds the expenses table with an event foreign key
+and positive-amount constraint. Amounts use MySQL DECIMAL and Java BigDecimal.
+Totals are calculated from the stored expenses. Existing events initially
+have zero expenses. The event API's existing development access rules also
+cover these nested expense endpoints.
+
+ExpenseApiTests verifies persistence, event isolation, exact totals,
+overspending, validation, and missing events. It removes its own test data.
