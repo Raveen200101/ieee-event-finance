@@ -33,6 +33,6 @@ export function EventOverview({ event, expenses, income }: {
     {!budget && !budgetError && <p role="status">Loading category budgets...</p>}
     {budget && <BudgetTable budget={budget} />}
     <p className="balance-line">Event balance <strong className={income && income.balance < 0 ? 'error' : ''}>{income ? money.format(income.balance) : '—'}</strong><span>Income minus expenses</span></p>
-    <div className="actions"><a className="button" href={`#/events/${event.id}/budget`}>Manage planned budget →</a><a className="button secondary" href={`#/events/${event.id}/expenses`}>Review expenses →</a><button className="secondary" disabled title="Quotation workflow is pending">Compare quotations →</button><button className="secondary" disabled title="Document storage is pending">Browse documents →</button></div>
+    <div className="actions"><a className="button" href={`#/events/${event.id}/budget`}>Manage planned budget →</a><a className="button secondary" href={`#/events/${event.id}/expenses`}>Review expenses →</a><a className="button secondary" href={`#/events/${event.id}/purchases`}>Compare quotations →</a><button className="secondary" disabled title="Document storage is pending">Browse documents →</button></div>
   </>
 }

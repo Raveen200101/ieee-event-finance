@@ -6,7 +6,7 @@ const navigation = [
   ['Events', 'events', '#/events'],
   ['Event overview', 'overview', 'event'],
   ['Planned budget', 'budget', 'budget'],
-  ['Purchase groups', 'purchases', ''],
+  ['Purchase groups', 'purchases', 'purchases'],
   ['Itemized expenses', 'expenses', 'expenses'],
   ['Bank transfers', 'bank', ''],
   ['Fundraising', 'income', 'income'],
@@ -50,7 +50,7 @@ export function AppShell({ children, events, selected, page, term }: {
         <nav aria-label="Chapter navigation">
           {navigation.map(([label, icon, destination]) => {
             let href = destination
-            if (['event', 'budget', 'expenses', 'income'].includes(destination)) {
+            if (['event', 'budget', 'purchases', 'expenses', 'income'].includes(destination)) {
               href = selected ? `#/events/${selected.id}${destination === 'event' ? '' : '/' + destination}` : ''
             }
             const active = destination === '#/events' ? page === 'events' || page === 'new'
