@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { getEvent, listEvents } from './api/events'
 import { EventForm } from './components/EventForm'
 import { ExpensePanel } from './components/ExpensePanel'
+import { IncomePanel } from './components/IncomePanel'
 import type { EventRecord } from './types/event'
 
 const currency = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' })
 
 function App() {
+  const [financeRevision, setFinanceRevision] = useState(0)
   const [events, setEvents] = useState<EventRecord[]>([])
   const [selected, setSelected] = useState<EventRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,12 +55,12 @@ function App() {
 
   return (
     <main>
-      <header><p className="chapter">IEEE Computer Society Â· SLIIT</p><h1>IEEE Event Finance</h1></header>
+      <header><p className="chapter">IEEE Computer Society &middot; SLIIT</p><h1>IEEE Event Finance</h1></header>
       <div className="layout">
         <EventForm onCreated={onCreated} />
         <section className="panel">
           <h2>Events</h2>
-          {loading && <p role="status">Loading eventsâ€¦</p>}
+          {loading && <p role="status">Loading events...</p>}
           {error && <p role="alert" className="error">{error} Reload the page to try again.</p>}
           {notice && <p role="status">{notice}</p>}
           {!loading && !error && events.length === 0 && <p>Create your first event to get started.</p>}
@@ -67,13 +69,13 @@ function App() {
               <li key={event.id}>
                 <button className="event" onClick={() => selectEvent(event.id)} aria-pressed={selected?.id === event.id}>
                   <strong>{event.name}</strong>
-                  <span>{event.eventDate} Â· {event.venue}</span>
+                  <span>{event.eventDate} &middot; {event.venue}</span>
                   <span>{currency.format(event.plannedBudget)}</span>
                 </button>
               </li>
             ))}
           </ul>
-          {detailsLoading && <p role="status">Loading event detailsâ€¦</p>}
+          {detailsLoading && <p role="status">Loading event details...</p>}
           {selected && !detailsLoading && (
             <article className="details" aria-label="Event details">
               <h2>{selected.name}</h2>
@@ -83,7 +85,8 @@ function App() {
                 <dt>Planned budget</dt><dd>{currency.format(selected.plannedBudget)}</dd>
               </dl>
               <p className="description">{selected.description || 'No description provided.'}</p>
-              <ExpensePanel key={selected.id} eventId={selected.id} />
+              <IncomePanel key={`income-${selected.id}`} eventId={selected.id} revision={financeRevision} />
+              <ExpensePanel key={`expense-${selected.id}`} eventId={selected.id} onSaved={() => setFinanceRevision((value) => value + 1)} />
             </article>
           )}
         </section>
