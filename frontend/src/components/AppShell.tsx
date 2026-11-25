@@ -8,6 +8,7 @@ const navigation = [
   ['Chapter overview', 'overview', '#/chapter'],
   ['Events', 'events', '#/events'],
   ['Event overview', 'overview', 'event'],
+  ['Event team', 'members', 'members'],
   ['Planned budget', 'budget', 'budget'],
   ['Purchase groups', 'purchases', 'purchases'],
   ['Itemized expenses', 'expenses', 'expenses'],
@@ -62,10 +63,11 @@ export function AppShell({ children, events, selected, page, term }: {
           {navigation.map(([label, icon, destination]) => {
             if (destination === '#/team' && !isAdmin) return null
             if (destination === 'budget' && !isChair) return null
+            if (destination === 'members' && !isChair) return null
             if (['expenses', 'income'].includes(destination) && !canManageFinance) return null
             if (destination === 'purchases' && !canManagePurchases) return null
             let href = destination
-            if (['event', 'budget', 'purchases', 'expenses', 'income'].includes(destination)) {
+            if (['event', 'budget', 'purchases', 'expenses', 'income', 'members'].includes(destination)) {
               href = selected ? `#/events/${selected.id}${destination === 'event' ? '' : '/' + destination}` : ''
             }
             const active = destination === '#/events' ? page === 'events' || page === 'new'

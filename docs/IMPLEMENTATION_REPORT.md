@@ -99,6 +99,41 @@ backup/retention. Email recovery/invitations, MFA, a staged key ring and refresh
 retention are documented future improvements. Logout revokes refresh families but
 an already issued access JWT can remain valid until expiry (normally 15 minutes).
 
+## Event assignment follow-up
+
+Added committee-only Event team screens and a limited assignment directory, plus
+purchase-group Logistics Team Lead selection and clearing. Account administration
+is still a separate privilege. Existing membership IDs API remains compatible;
+purchase responses add ownerId. No database migration or data backfill is required.
+
+Removing event membership clears purchase-group ownership for that member and event
+in the same transaction. It preserves original quotation creators and all financial
+records. Rejoining the event requires explicit reassignment of purchase groups.
+Assignment and removal lock the user row to serialize membership/owner changes.
+
+Verification: Java 21 Maven Wrapper `test` passed all 25 tests, including four
+team-lead/assignment API tests. Frontend build, lint and five authentication client
+tests passed. The restarted IntelliJ backend and Vite-proxied health both returned
+UP. Browser checks confirmed the Event team and purchase empty-state pages load
+against local MySQL; no live assignments or financial records were changed. Lead
+accounts and purchase groups are not present in the current event, so assignment
+mutations were verified using isolated H2 fixtures rather than live chapter data.
+
+Account-creation follow-up: `POST /api/users` accepts optional `eventIds`; the
+Chapter accounts form provides event checkboxes. Creation validates the complete
+selection before persisting the account and memberships in one transaction.
+Committee accounts cannot receive redundant event assignments. Tests cover all
+three non-committee roles, duplicate selections, missing/invalid events, omitted
+eventIds, and prevention of partial accounts. Java 21 backend suite: 26 tests
+passed; frontend build and lint passed. No live chapter account was created for
+verification.
+
+Current-events account column: the administrator-only account directory now
+returns currentEvents summaries (ID, name and status), loaded with one membership
+query for Planning/In progress events. Completed, Archived and unassigned events
+are excluded. The frontend links event names and preserves the summaries when
+account access is updated. Authentication/profile responses remain unchanged.
+
 ## File inventory
 
 The inventory below includes reused/uncommitted backend authentication files from

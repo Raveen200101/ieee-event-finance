@@ -134,3 +134,9 @@ dd { margin: 0; }
   .metric-grid { gap: 12px; }
   .metric { padding: 16px; }
 }
+.event-choices { margin-top: 1rem; }
+.event-choice { display: flex; align-items: center; gap: .65rem; margin: .6rem 0; }
+.event-choice input[type="checkbox"] { width: auto; min-height: auto; padding: 0; margin: 0; }
+.account-events { list-style: none; padding: 0; margin: 0; min-width: 140px; }
+.account-events li + li { margin-top: .5rem; }
+.account-events small { display: block; color: #66758f; margin-top: .15rem; }

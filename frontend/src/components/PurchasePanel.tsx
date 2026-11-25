@@ -2,6 +2,8 @@ import { useAuth } from './AuthContext'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getBudget } from '../api/budgets'
+import { getEventMembers, setPurchaseOwner } from '../api/assignments'
+import type { EventMember } from '../api/assignments'
 import { createPurchase, getPurchases, removeQuotation, saveQuotation, selectQuotation } from '../api/purchases'
 import type { EventBudget } from '../types/budget'
 import type { PurchaseGroup, Quotation } from '../types/purchase'
@@ -12,6 +14,7 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
   const { isChair, canManagePurchases } = useAuth()
   const [groups, setGroups] = useState<PurchaseGroup[]>()
   const [budget, setBudget] = useState<EventBudget>()
+  const [members, setMembers] = useState<EventMember[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [revision, setRevision] = useState(0)
@@ -28,8 +31,8 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
 
   useEffect(() => {
     let active = true
-    Promise.all([getPurchases(eventId), isChair ? getBudget(eventId) : Promise.resolve(undefined)]).then(([purchases, allocations]) => {
-      if (active) { setGroups(purchases); setBudget(allocations); setError('') }
+    Promise.all([getPurchases(eventId), isChair ? getBudget(eventId) : Promise.resolve(undefined), isChair ? getEventMembers(eventId) : Promise.resolve([])]).then(([purchases, allocations, team]) => {
+      if (active) { setGroups(purchases); setBudget(allocations); setMembers(team); setError('') }
     }).catch((failure: Error) => { if (active) setError(failure.message) })
     return () => { active = false }
   }, [eventId, revision, isChair])
@@ -56,6 +59,14 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
   }
   const allocated = budget?.categories.filter((row) => row.id !== null) || []
   const editingGroup = groups?.find((group) => group.id === groupId)
+  const eligibleOwners = members.filter((member) => member.assigned && member.enabled && member.role === 'LOGISTICS_TEAM_LEAD')
+  async function changeOwner(group: PurchaseGroup, value: string) {
+    if (group.ownerId !== null && !window.confirm('Change this purchase-group assignment? The previous lead will lose access. Existing quotations will keep their original creator.')) return
+    await mutate(async () => {
+      await setPurchaseOwner(eventId, group.id, value ? Number(value) : undefined)
+      return getPurchases(eventId)
+    }, value ? 'Purchase-group assignment saved.' : 'Purchase-group assignment cleared.', resetQuote)
+  }
   return <>
     <p className="info-strip">Compare supplier prices before purchasing. Selecting a quotation records your preference; record the actual expense separately when spending occurs.</p>
     {error && <div role="alert" className="error"><p>{error}</p><button className="secondary" disabled={busy} onClick={() => setRevision((value) => value + 1)}>Reload purchase groups</button></div>}
@@ -65,6 +76,11 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
       {!groups.length && <section className="panel"><h2>No purchase groups yet</h2><p>Create a group for an item or service, then add supplier quotations to compare.</p></section>}
       {groups.map((group) => <section key={group.id} className="panel purchase-group" aria-label={group.name}>
         <div className="page-heading"><div><h2>{group.name}</h2><p>{group.category}{group.notes && ` · ${group.notes}`}</p></div>{canManagePurchases && <button disabled={busy} onClick={() => startQuote(group)}>+ Add quotation</button>}</div>
+        {isChair && <div className="form-grid"><label>Logistics Team Lead<select aria-label={`Logistics Team Lead for ${group.name}`} disabled={busy} value={group.ownerId ?? ''} onChange={(event) => void changeOwner(group, event.target.value)}>
+          <option value="">Unassigned — committee only</option>
+          {group.ownerId !== null && !eligibleOwners.some((member) => member.id === group.ownerId) && <option value={group.ownerId} disabled>{members.find((member) => member.id === group.ownerId)?.displayName ?? `Member #${group.ownerId}`} (unavailable)</option>}
+          {eligibleOwners.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
+        </select></label><p className="field-help">Only active Logistics Team Leads assigned in <a href={`#/events/${eventId}/members`}>Event team</a> are available. Reassignment preserves existing quotations and their creators.</p></div>}
         {isChair && <p>Category budget: <strong>{money(group.categoryBudget)}</strong> · Preferred quotations across this category: <strong>{money(group.categorySelectedTotal)}</strong></p>}
         {isChair && <p className={group.categoryRemaining < 0 ? 'error' : ''}>{group.categoryRemaining < 0 ? 'Selected costs exceed the category budget by ' : 'Category budget remaining after selected costs: '}{money(Math.abs(group.categoryRemaining))}</p>}
         <div className="table-scroll"><table className="quotation-table"><thead><tr><th>Supplier</th><th>Quantity</th><th>Unit price</th><th>Total</th><th>Notes</th><th>Decision</th>{canManagePurchases && <th>Actions</th>}</tr></thead><tbody>

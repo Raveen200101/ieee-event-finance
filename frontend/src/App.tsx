@@ -8,6 +8,7 @@ import { EventOverview } from './components/EventOverview'
 import { ExpensePanel } from './components/ExpensePanel'
 import { IncomePanel } from './components/IncomePanel'
 import { TeamPanel } from './components/TeamPanel'
+import { EventTeamPanel } from './components/EventTeamPanel'
 import { AccountPanel } from './components/AccountPanel'
 import { useAuth } from './components/AuthContext'
 import { BudgetPanel } from './components/BudgetPanel'
@@ -106,7 +107,7 @@ function App() {
     && (!term || event.term === term),
   )
   const title = page === 'team' ? 'Chapter accounts' : page === 'account' ? 'My account' : page === 'new' ? 'Create event' : page === 'events' ? 'Events'
-    : page === 'purchases' ? 'Purchase groups' : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
+    : page === 'members' ? 'Event team' : page === 'purchases' ? 'Purchase groups' : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
 
   return <AppShell events={events} selected={selected} page={page} term={displayTerm}>
     <p className="breadcrumb">{selected ? `EVENTS / ${selected.name.toUpperCase()} / ${title.toUpperCase()}` : `CHAPTER / ${title.toUpperCase()}`}</p>
@@ -144,6 +145,7 @@ function App() {
     {selected && <>
       {financeError && <p role="alert" className="error">Financial data could not be loaded. {financeError}</p>}
       {page === 'event' && <EventOverview event={selected} expenses={expenses[selected.id]} income={income} />}
+      {page === 'members' && <EventTeamPanel key={selected.id} eventId={selected.id} />}
       {page === 'budget' && isChair && <BudgetPanel key={selected.id} eventId={selected.id} />}
       {page === 'purchases' && canManagePurchases && <PurchasePanel key={selected.id} eventId={selected.id} />}
       {page === 'expenses' && canManageFinance && <section className="panel"><ExpensePanel key={selected.id} eventId={selected.id} onSaved={() => setRevision((value) => value + 1)} /></section>}

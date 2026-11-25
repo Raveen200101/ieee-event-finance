@@ -7,4 +7,7 @@ export interface ChapterUser {
   enabled: boolean
   accountAdmin: boolean
 }
+export interface ChapterAccount extends ChapterUser {
+  currentEvents: { id: number; name: string; status: string }[]
+}
 export const roleLabels: Record<ChapterRole, string> = { COMMITTEE_MEMBER: 'Committee member', FINANCE_TEAM_LEAD: 'Finance Team Lead', LOGISTICS_TEAM_LEAD: 'Logistics Team Lead', VOLUNTEER: 'Volunteer' }

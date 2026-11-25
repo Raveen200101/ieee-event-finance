@@ -8,4 +8,5 @@ public class EventMembership {
     protected EventMembership() {}
     public EventMembership(Event event,ChapterUser user) { this.event=event; this.user=user; }
     public Long getUserId() { return user.getId(); }
+    public Event getEvent() { return event; }
 }

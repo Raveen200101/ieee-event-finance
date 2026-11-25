@@ -389,7 +389,8 @@ quotation business regressions. See the final verification record for actual cou
 
 ## Remaining work
 
-- Event-assignment management UI and expanded role-specific workflows.
+- Expanded role-specific workflows. Event-team assignment and purchase-owner
+  management screens are implemented; see the README for their behavior and APIs.
 - PDF quotation/bill storage and treasurer transaction-receipt attachment APIs.
   Logistics downloads must follow the exact purchase/expense link and ownership;
   never expose an entire financial ledger just to show one receipt.

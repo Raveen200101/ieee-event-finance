@@ -14,9 +14,18 @@ import org.springframework.web.server.ResponseStatusException;
 @Service @Transactional(readOnly=true)
 public class ChapterUserService {
     private final ChapterUserRepository users; private final RoleRepository roles; private final RefreshTokenRepository tokens; private final PasswordEncoder passwords;
-    public ChapterUserService(ChapterUserRepository users,RoleRepository roles,RefreshTokenRepository tokens,PasswordEncoder passwords) { this.users=users; this.roles=roles; this.tokens=tokens; this.passwords=passwords; }
+    private final EventRepository events;
+    private final EventMembershipRepository memberships;
+    public ChapterUserService(ChapterUserRepository users,RoleRepository roles,RefreshTokenRepository tokens,PasswordEncoder passwords,EventRepository events,EventMembershipRepository memberships) { this.users=users; this.roles=roles; this.tokens=tokens; this.passwords=passwords; this.events=events; this.memberships=memberships; }
     @PreAuthorize("@access.admin(authentication)")
-    public List<UserResponse> list() { return users.findAllByOrderByIdAsc().stream().map(UserResponse::from).toList(); }
+    public List<ChapterAccountResponse> list() {
+        var assignments=memberships.findCurrentAssignments().stream().collect(java.util.stream.Collectors.groupingBy(
+                EventMembership::getUserId,
+                java.util.stream.Collectors.mapping(m -> new ChapterAccountResponse.CurrentEvent(
+                        m.getEvent().getId(),m.getEvent().getName(),m.getEvent().getStatus()),java.util.stream.Collectors.toList())));
+        return users.findAllByOrderByIdAsc().stream()
+                .map(user -> ChapterAccountResponse.from(user,assignments.getOrDefault(user.getId(),List.of()))).toList();
+    }
     @PreAuthorize("@access.self(authentication,#id)")
     public UserResponse current(Long id) { return UserResponse.from(users.findById(id).filter(ChapterUser::isEnabled).orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))); }
     public static void validatePassword(String password) {
@@ -30,7 +39,17 @@ public class ChapterUserService {
         return users.saveAndFlush(new ChapterUser(request.email(),request.displayName(),passwords.encode(request.password()),role(request.role())));
     }
     @Transactional @PreAuthorize("@access.admin(authentication)")
-    public UserResponse create(CreateUserRequest request) { return UserResponse.from(persist(request)); }
+    public UserResponse create(CreateUserRequest request) {
+        var eventIds=request.eventIds()==null ? java.util.Set.<Long>of() : new java.util.HashSet<>(request.eventIds());
+        if(request.role()==ChapterRole.COMMITTEE_MEMBER && !eventIds.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Committee members already have access to every event.");
+        var assignedEvents=events.findAllById(eventIds);
+        if(assignedEvents.size()!=eventIds.size())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"One or more selected events no longer exist. Reload the event list.");
+        var user=persist(request);
+        memberships.saveAll(assignedEvents.stream().map(event -> new EventMembership(event,user)).toList());
+        return UserResponse.from(user);
+    }
     /** Trusted startup only: no HTTP endpoint, no reset of existing credentials. */
     @Transactional public void bootstrap(CreateUserRequest request) {
         if(users.count()!=0) return;

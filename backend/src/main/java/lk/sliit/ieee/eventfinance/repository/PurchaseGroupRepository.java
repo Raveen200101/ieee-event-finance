@@ -11,4 +11,7 @@ public interface PurchaseGroupRepository extends JpaRepository<PurchaseGroup, Lo
     Optional<PurchaseGroup> findByIdAndEventId(Long id, Long eventId);
     Optional<PurchaseGroup> findFirstByIdAndEventId(Long id,Long eventId);
     boolean existsByBudgetCategoryId(Long categoryId);
+    @Modifying
+    @Query("update PurchaseGroup g set g.owner=null where g.event.id=:eventId and g.owner.id=:userId")
+    void clearOwnerForEvent(Long eventId, Long userId);
 }

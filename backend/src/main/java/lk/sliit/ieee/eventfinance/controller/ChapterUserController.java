@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 public class ChapterUserController {
     private final ChapterUserService users;
     public ChapterUserController(ChapterUserService users) { this.users = users; }
-    @GetMapping public List<UserResponse> list() { return users.list(); }
+    @GetMapping public List<ChapterAccountResponse> list() { return users.list(); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public UserResponse create(@Valid @RequestBody CreateUserRequest request) { return users.create(request); }
     @PutMapping("/{id}") public UserResponse update(@PathVariable Long id, @Valid @RequestBody UpdateUserAccessRequest request) { return users.update(id, request); }

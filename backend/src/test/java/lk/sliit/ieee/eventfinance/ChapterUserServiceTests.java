@@ -15,7 +15,7 @@ class ChapterUserServiceTests {
         var chair = mock(ChapterUser.class);
         when(chair.getId()).thenReturn(1L); when(chair.isAccountAdmin()).thenReturn(true); when(chair.isEnabled()).thenReturn(true);
         when(repository.lockAllForAccessUpdate()).thenReturn(List.of(chair));
-        var service = new ChapterUserService(repository, mock(lk.sliit.ieee.eventfinance.repository.RoleRepository.class), mock(lk.sliit.ieee.eventfinance.repository.RefreshTokenRepository.class), mock(PasswordEncoder.class));
+        var service = new ChapterUserService(repository, mock(lk.sliit.ieee.eventfinance.repository.RoleRepository.class), mock(lk.sliit.ieee.eventfinance.repository.RefreshTokenRepository.class), mock(PasswordEncoder.class), mock(lk.sliit.ieee.eventfinance.repository.EventRepository.class), mock(lk.sliit.ieee.eventfinance.repository.EventMembershipRepository.class));
         assertEquals(409, assertThrows(ResponseStatusException.class, () -> service.update(1L, new UpdateUserAccessRequest(ChapterRole.VOLUNTEER, true, false))).getStatusCode().value());
         assertEquals(409, assertThrows(ResponseStatusException.class, () -> service.update(1L, new UpdateUserAccessRequest(ChapterRole.COMMITTEE_MEMBER, false, true))).getStatusCode().value());
         verify(chair, never()).updateAccess(any(), anyBoolean(), anyBoolean());

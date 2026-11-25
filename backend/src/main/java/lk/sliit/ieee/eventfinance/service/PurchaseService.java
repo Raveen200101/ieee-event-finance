@@ -56,7 +56,7 @@ public class PurchaseService {
                             q.getTotal(), q.getNotes(), q.isSelected())).toList();
             return new PurchaseGroupResponse(g.getId(), g.getName(), g.getNotes(), category.getId(),
                     category.getCategory(), access.committee()?category.getPlannedAmount():null, access.committee()?selected:null,
-                    access.committee()?category.getPlannedAmount().subtract(selected):null, rows);
+                    access.committee()?category.getPlannedAmount().subtract(selected):null, g.getOwnerId(), rows);
         }).toList();
     }
     @Transactional
@@ -105,9 +105,11 @@ public class PurchaseService {
     }
     @Transactional @PreAuthorize("@access.committee(authentication)")
     public void assignOwner(Long eventId,Long groupId,Long userId) {
+        var owner=users.lockById(userId).filter(u -> u.isEnabled() && u.getRole()==ChapterRole.LOGISTICS_TEAM_LEAD).orElseThrow(() -> missing("Logistics team lead"));
         var group=group(eventId,groupId);
-        var owner=users.findById(userId).filter(u -> u.isEnabled() && u.getRole()==ChapterRole.LOGISTICS_TEAM_LEAD).orElseThrow(() -> missing("Logistics team lead"));
         if(!memberships.existsByEventIdAndUserId(eventId,userId)) throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,"Assign this lead to the event first.");
         group.assignOwner(owner);
     }
+    @Transactional @PreAuthorize("@access.committee(authentication)")
+    public void clearOwner(Long eventId,Long groupId) { group(eventId,groupId).assignOwner(null); }
 }

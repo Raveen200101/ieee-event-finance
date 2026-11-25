@@ -65,6 +65,10 @@ class TeamLeadAuthorizationTests extends AuthenticatedApiTest {
         long incomeId=JSON.readTree(raised.body()).get("id").asLong();assertEquals(200,send(browser,base+"/incomes/"+incomeId,"PUT",income,false).statusCode());
         assertEquals(400,send(browser,base+"/incomes","POST",income.replace("Sponsorship","New unknown category"),false).statusCode());
         assertEquals(403,send(browser,base+"/members/"+finance.getId(),"DELETE",null,false).statusCode());
+        assertEquals(204,send(client,base+"/members/"+finance.getId(),"DELETE",null,false).statusCode());
+        assertEquals(403,send(browser,base+"/expenses","GET",null,false).statusCode());
+        assertTrue(expenses.existsById(id));
+        assertTrue(incomes.existsById(incomeId));
     }
     @Test void logisticsSeesOwnAssignedPurchasesAndCanSubmitButNotSelectQuotations() throws Exception {
         var event=event();var lead=user(ChapterRole.LOGISTICS_TEAM_LEAD);var otherLead=user(ChapterRole.LOGISTICS_TEAM_LEAD);assign(event,lead);assign(event,otherLead);
@@ -89,5 +93,105 @@ class TeamLeadAuthorizationTests extends AuthenticatedApiTest {
         assertEquals(403,send(browser,"/api/events/"+event.getId()+"/incomes","POST","{}",false).statusCode());
         assertEquals(204,send(client,"/api/events/"+event.getId()+"/members/"+lead.getId(),"DELETE",null,false).statusCode());
         assertEquals(403,send(browser,base,"GET",null,false).statusCode());
+        assertNull(groups.findById(group.getId()).orElseThrow().getOwnerId());
+        assertTrue(quotations.existsById(id));
+        assign(event,lead);
+        assertEquals(0,JSON.readTree(send(browser,base,"GET",null,false).body()).size(),"Rejoining must not silently restore a removed purchase assignment.");
+    }
+    @Test void committeeWithoutAccountAdminCanManageAssignmentsUsingLimitedDirectory() throws Exception {
+        var event=event(); var committee=user(ChapterRole.COMMITTEE_MEMBER);
+        var finance=user(ChapterRole.FINANCE_TEAM_LEAD); var logistics=user(ChapterRole.LOGISTICS_TEAM_LEAD);
+        var volunteer=user(ChapterRole.VOLUNTEER); var browser=browser(committee);
+        String base="/api/events/"+event.getId()+"/members";
+        assertEquals(403,send(browser,"/api/users","GET",null,false).statusCode());
+        var options=send(browser,base+"/options","GET",null,false); assertEquals(200,options.statusCode());
+        var directory=JSON.readTree(options.body());
+        assertTrue(directory.size()>=3);
+        for(var row:directory) {
+            assertFalse(row.has("passwordHash")); assertFalse(row.has("email")); assertFalse(row.has("accountAdmin"));
+            assertNotEquals("COMMITTEE_MEMBER",row.get("role").asText());
+        }
+        assertEquals(204,send(browser,base+"/"+finance.getId(),"PUT",null,false).statusCode());
+        assertEquals(204,send(browser,base+"/"+finance.getId(),"PUT",null,false).statusCode());
+        assertEquals(1,JSON.readTree(send(browser,base,"GET",null,false).body()).size());
+        assertEquals(400,send(browser,base+"/"+committee.getId(),"PUT",null,false).statusCode());
+        assertEquals(403,send(browser(finance),base+"/options","GET",null,false).statusCode());
+        assertEquals(403,send(browser(logistics),base+"/"+volunteer.getId(),"PUT",null,false).statusCode());
+        finance.updateAccess(roles.findByName(ChapterRole.FINANCE_TEAM_LEAD).orElseThrow(),false,false); accounts.save(finance);
+        var disabled=JSON.readTree(send(browser,base+"/options","GET",null,false).body());
+        assertTrue(java.util.stream.StreamSupport.stream(disabled.spliterator(),false).anyMatch(row -> row.get("id").asLong()==finance.getId() && row.get("assigned").asBoolean() && !row.get("enabled").asBoolean()));
+        assertEquals(404,send(browser,base+"/"+finance.getId(),"PUT",null,false).statusCode());
+        assertEquals(204,send(browser,base+"/"+finance.getId(),"DELETE",null,false).statusCode());
+        assertEquals(404,send(browser,"/api/events/9223372036854775807/members/options","GET",null,false).statusCode());
+    }
+    @Test void purchaseAssignmentsRequireActiveAssignedLogisticsLeadAndCanBeCleared() throws Exception {
+        var event=event(); var otherEvent=event(); var lead=user(ChapterRole.LOGISTICS_TEAM_LEAD);
+        var replacement=user(ChapterRole.LOGISTICS_TEAM_LEAD); var finance=user(ChapterRole.FINANCE_TEAM_LEAD);
+        var category=budgets.save(new BudgetCategory(event,"Assignment goods","Committee",new BigDecimal("200")));
+        var group=groups.save(new PurchaseGroup(event,category,"Assignment group",""));
+        String base="/api/events/"+event.getId()+"/purchase-groups"; String owner=base+"/"+group.getId()+"/owner";
+        assertEquals(400,send(client,owner,"PUT","{\"userId\":"+lead.getId()+"}",false).statusCode());
+        assign(event,lead); assign(event,replacement); assign(event,finance);
+        assertEquals(404,send(client,owner,"PUT","{\"userId\":"+finance.getId()+"}",false).statusCode());
+        assertEquals(204,send(client,owner,"PUT","{\"userId\":"+lead.getId()+"}",false).statusCode());
+        var browser=browser(lead);
+        assertEquals(lead.getId().longValue(),JSON.readTree(send(client,base,"GET",null,false).body()).get(0).get("ownerId").asLong());
+        assertEquals(403,send(browser,owner,"DELETE",null,false).statusCode());
+        assertEquals(403,send(browser,owner,"PUT","{\"userId\":"+replacement.getId()+"}",false).statusCode());
+        assertEquals(204,send(client,owner,"PUT","{\"userId\":"+replacement.getId()+"}",false).statusCode());
+        assertEquals(0,JSON.readTree(send(browser,base,"GET",null,false).body()).size());
+        assertEquals(404,send(client,"/api/events/"+otherEvent.getId()+"/purchase-groups/"+group.getId()+"/owner","DELETE",null,false).statusCode());
+        assertEquals(204,send(client,owner,"DELETE",null,false).statusCode());
+        assertNull(groups.findById(group.getId()).orElseThrow().getOwnerId());
+        assertTrue(groups.existsById(group.getId()));
+    }
+    @Test void accountCreationSavesSelectedEventsAndRejectsInvalidSelectionWithoutPartialAccount() throws Exception {
+        var first=event(); var second=event();
+        for(var role:List.of(ChapterRole.FINANCE_TEAM_LEAD,ChapterRole.LOGISTICS_TEAM_LEAD,ChapterRole.VOLUNTEER)) {
+            String email=UUID.randomUUID()+"@example.invalid";
+            var body=JSON.writeValueAsString(Map.of("email",email,"displayName","New assigned lead","password",TEST_PASSWORD,"role",role.name(),"eventIds",List.of(first.getId(),second.getId(),first.getId())));
+            var response=send(client,"/api/users","POST",body,false); assertEquals(201,response.statusCode(),response.body());
+            var created=accounts.findById(JSON.readTree(response.body()).get("id").asLong()).orElseThrow(); people.add(created);
+            assertTrue(memberships.existsByEventIdAndUserId(first.getId(),created.getId()));
+            assertTrue(memberships.existsByEventIdAndUserId(second.getId(),created.getId()));
+            var visible=JSON.readTree(send(browser(created),"/api/events","GET",null,false).body()); assertEquals(2,visible.size());
+        }
+        String invalidEmail=UUID.randomUUID()+"@example.invalid";
+        var invalid=JSON.writeValueAsString(Map.of("email",invalidEmail,"displayName","Invalid selection","password",TEST_PASSWORD,"role","FINANCE_TEAM_LEAD","eventIds",List.of(first.getId(),Long.MAX_VALUE)));
+        assertEquals(400,send(client,"/api/users","POST",invalid,false).statusCode());
+        assertFalse(accounts.existsByEmail(invalidEmail));
+        assertEquals(400,send(client,"/api/users","POST",invalid.replace("FINANCE_TEAM_LEAD","COMMITTEE_MEMBER"),false).statusCode());
+        assertFalse(accounts.existsByEmail(invalidEmail));
+        assertEquals(400,send(client,"/api/users","POST",invalid.replace(Long.toString(Long.MAX_VALUE),"-1"),false).statusCode());
+        String legacyEmail=UUID.randomUUID()+"@example.invalid";
+        var legacy=JSON.writeValueAsString(Map.of("email",legacyEmail,"displayName","Assign later","password",TEST_PASSWORD,"role","VOLUNTEER"));
+        var response=send(client,"/api/users","POST",legacy,false); assertEquals(201,response.statusCode(),response.body());
+        var created=accounts.findById(JSON.readTree(response.body()).get("id").asLong()).orElseThrow(); people.add(created);
+        assertEquals(0,JSON.readTree(send(browser(created),"/api/events","GET",null,false).body()).size());
+    }
+    @Test void accountDirectoryShowsOnlyCurrentAssignedEventsAndTracksRemoval() throws Exception {
+        var planning=event(); var ongoing=event(); var completed=event(); var archived=event(); var unrelated=event();
+        ongoing.setSetupDetails(null,null,"In progress",null); events.save(ongoing);
+        completed.setSetupDetails(null,null,"Completed",null); events.save(completed);
+        archived.setSetupDetails(null,null,"Archived",null); events.save(archived);
+        var lead=user(ChapterRole.FINANCE_TEAM_LEAD); var unassigned=user(ChapterRole.VOLUNTEER);
+        for(var event:List.of(planning,ongoing,completed,archived)) assign(event,lead);
+        var result=send(client,"/api/users","GET",null,false); assertEquals(200,result.statusCode(),result.body());
+        for(var row:JSON.readTree(result.body())) {
+            if(row.get("id").asLong()==lead.getId()) {
+                var current=row.get("currentEvents"); assertEquals(2,current.size());
+                assertEquals(planning.getId().longValue(),current.get(0).get("id").asLong());
+                assertEquals("Planning",current.get(0).get("status").asText());
+                assertEquals(ongoing.getId().longValue(),current.get(1).get("id").asLong());
+                assertEquals("In progress",current.get(1).get("status").asText());
+                assertFalse(current.toString().contains("plannedBudget"));
+            }
+            if(row.get("id").asLong()==unassigned.getId()) assertEquals(0,row.get("currentEvents").size());
+        }
+        assertEquals(403,send(browser(lead),"/api/users","GET",null,false).statusCode());
+        assertEquals(204,send(client,"/api/events/"+planning.getId()+"/members/"+lead.getId(),"DELETE",null,false).statusCode());
+        for(var row:JSON.readTree(send(client,"/api/users","GET",null,false).body())) {
+            if(row.get("id").asLong()==lead.getId()) assertEquals(1,row.get("currentEvents").size());
+        }
     }
 }

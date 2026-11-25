@@ -360,3 +360,53 @@ and loading an existing event overview. Frontend build, lint, and five authentic
 client tests passed. Run `npm.cmd test` from `frontend` for these tests; they mock
 HTTP responses and do not change the chapter database. Open `http://localhost:5173`
 and press Ctrl+F5 if an older frontend is still loaded.
+
+## Event team and purchase assignments
+
+The **Chapter accounts** table includes **Current events** with linked event names
+and statuses for each assigned member. Only Planning and In progress events appear;
+Completed and Archived events are excluded. Use **Reload accounts** after changes.
+Committee accounts show **All events (committee access)** because event access does
+not imply an explicit work assignment. Disabled accounts keep their assignment list
+visible for administration, but remain unable to sign in.
+
+Sign in as a committee member, open an event, and select **Event team** in the
+sidebar to see only members assigned to that event and remove access when needed.
+The page does not list unassigned chapter accounts or offer add-assignment buttons.
+Committee members already have chapter-wide event access. An account administrator
+creates accounts under **Chapter accounts**; committee members do not need account
+administrator privileges to view or remove event team assignments.
+
+You can also assign events while creating an account: open **Chapter accounts →
+Create chapter account**, choose the role, tick the optional **Assigned events**
+checkboxes, and click **Create account**. The account and memberships save in one
+transaction. Invalid event selections leave no partial account. Committee accounts
+automatically access all events and do not need event selection. Existing clients
+may omit `eventIds` in `POST /api/users` to create an account without assignments.
+
+Under **Purchase groups**, choose an assigned, active Logistics Team Lead for each
+group. Choose **Unassigned — committee only** to clear it. Removing a member from
+the event also clears their purchase-group assignments in that event. Their
+expenses, income and quotations remain stored with the original creator; rejoining
+an event does not automatically restore cleared purchase assignments. Reassigning
+a group does not transfer ownership of existing quotations to the new lead.
+
+Finance leads can manage only their own financial records in assigned events.
+Logistics leads can access assigned purchase groups and their own quotations;
+they cannot access the expense/income ledgers or select preferred quotations.
+Disabled accounts cannot be newly assigned. Existing disabled assignees remain
+visible so the committee can remove them. No schema migration is needed here.
+
+Assignment APIs (committee only):
+
+- `GET /api/events/{eventId}/members/options`: limited directory with name, role,
+  active status and event assignment; no email, credentials or administrator flag.
+- `GET /api/events/{eventId}/members`: assigned user IDs.
+- `PUT` / `DELETE /api/events/{eventId}/members/{userId}`: assign/remove event access.
+- `PUT /api/events/{eventId}/purchase-groups/{groupId}/owner` with `{"userId":123}`:
+  assign an active Logistics Team Lead who is already assigned to the event.
+- `DELETE /api/events/{eventId}/purchase-groups/{groupId}/owner`: clear ownership.
+
+Run `.\mvnw.cmd test` in `backend` with Java 21. Assignment tests use isolated H2,
+including a non-admin committee member, invalid assignments, reassignment, access
+revocation and record preservation; they do not change chapter data.
