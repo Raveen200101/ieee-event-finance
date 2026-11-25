@@ -5,5 +5,6 @@ import lk.sliit.ieee.eventfinance.entity.Expense;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
+    java.util.Optional<Expense> findByIdAndEventId(Long id,Long eventId);
     List<Expense> findByEventIdOrderByExpenseDateDescIdDesc(Long eventId);
 }

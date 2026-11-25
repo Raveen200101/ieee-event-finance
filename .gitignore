@@ -10,8 +10,13 @@ application-local-secrets.properties
 *firebase-adminsdk*.json
 firebase-service-account*.json
 private-documents/
+backend/.local/
 # Local build and credential overrides
 frontend/*.local
 backend/src/main/resources/application-local.properties
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/application-local.yaml
+
+# External JWT keys and local authentication material
+*.private.pem
+jwt-keys/

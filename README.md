@@ -3,6 +3,8 @@ Event finance and procurement system for the IEEE Computer Society Chapter at SL
 
 ## Local setup
 
+The backend and React client now use JWT authentication. Read [the current authentication setup](docs/AUTHENTICATION.md) before restarting the backend. RSA keys are required. React stores access tokens in memory and restores sign-in through the refresh cookie.
+
 Use JDK 21, Node.js 22.12 or newer, npm, and MySQL. The backend
 includes the Maven Wrapper. Run the following commands from the repository
 root in separate PowerShell windows.
@@ -37,9 +39,20 @@ role's password.
 ```powershell
 Set-Location .\backend
 $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot'
+# Generate the RSA pair once; keep it outside Git.
+if (-not (Test-Path '.local/jwt-keys/jwt.private.pem')) {
+    & "$env:JAVA_HOME\bin\java.exe" scripts/GenerateJwtKeys.java .local/jwt-keys
+}
+$env:JWT_PRIVATE_KEY_PATH = (Resolve-Path '.local/jwt-keys/jwt.private.pem').Path
+$env:JWT_PUBLIC_KEY_PATH = (Resolve-Path '.local/jwt-keys/jwt.public.pem').Path
+$env:AUTH_COOKIE_SECURE = 'false' # Local HTTP only; true in production
+
 $env:SPRING_DATASOURCE_URL = 'jdbc:mysql://localhost:3306/ieee_event_finance_dev'
 $env:SPRING_DATASOURCE_USERNAME = 'ieee_event_finance'
 $env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'MySQL password' -AsSecureString)).Password
+# First startup only, when chapter_users is empty:
+$env:APP_BOOTSTRAP_CHAIR_EMAIL = 'admin@gmail.com'
+$env:APP_BOOTSTRAP_CHAIR_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'New Chair password (at least 12 characters)' -AsSecureString)).Password
 .\mvnw.cmd -version
 .\mvnw.cmd spring-boot:run
 ```
@@ -149,3 +162,201 @@ cover these nested expense endpoints.
 
 ExpenseApiTests verifies persistence, event isolation, exact totals,
 overspending, validation, and missing events. It removes its own test data.
+
+## Income tracking
+
+Select an event to record sponsorships, registration fees, donations, or
+other income. Each record requires description (up to 500 characters),
+source (up to 150 characters), amount (at least 0.01 with up to 13 integer
+digits and 2 decimal places), and incomeDate (ISO date). Source is free
+text with common suggestions. Dates can be past or future.
+
+- POST /api/events/{eventId}/incomes records income and returns HTTP 201.
+- GET /api/events/{eventId}/incomes returns incomes, totalIncome,
+  totalExpenses, and balance. Missing events return HTTP 404.
+
+Balance equals recorded income minus recorded expenses and may be negative.
+Planned budget remains the spending target used by expense tracking.
+Amounts use MySQL DECIMAL and Java BigDecimal. Records sort by income date
+descending, then ID descending. Adding expenses refreshes the income
+panel's financial totals.
+
+V3__create_incomes.sql creates the incomes table with an event foreign key
+and positive-amount constraint. Existing records and applied migrations
+remain intact. Income endpoints use the existing event API development
+access rules. IncomeApiTests verifies persistence, validation, event
+isolation, decimal totals, negative balances, and missing events.
+
+## Figma event screens
+
+The Events, Create Event, and Event Overview pages follow the supplied
+screen exports. Start at /#/events. Search and status/term filters operate
+on saved events; selecting a row opens its overview. Browser back/forward
+navigation is supported. Expense and income entry remain available from
+the sidebar after selecting an event.
+
+V4__add_event_setup_details.sql adds optional ExCom term, finance lead,
+and expected participants, plus an event status defaulting to Planning.
+Older requests remain valid, and existing records retain their data.
+Supported statuses are Planning, In progress, Completed, and Archived.
+
+The interface uses recorded expenses for actual spending. Bank transfers,
+verified amounts, documents, Excel
+reports, and role-based identity are still pending, and their unavailable
+actions or values are marked accordingly. Local development identity is
+shown in place of the mock Chair account from the design.
+
+## Planned budget
+
+Select an event, then **Planned budget** in the sidebar (/#/events/{id}/budget).
+Add categories with a responsible person's name and a planned amount in LKR.
+Edit owners/amounts or remove allocations. Names remain fixed while editing;
+removing an allocation never deletes expenses. Owners are free text until team
+membership is implemented. Category names match expense categories ignoring
+case and surrounding spaces; use the same name when entering expenses.
+
+The page and event overview compare category plans with recorded expenses,
+including categories without allocations. Amounts use DECIMAL/BigDecimal.
+Zero allocations are allowed; negative amounts or more than two decimal places
+are rejected. Duplicate categories within an event return HTTP 409. Category
+allocations may exceed the event spending target, with a visible warning.
+
+- GET /api/events/{eventId}/budget returns allocations, actual spending,
+  remaining amounts, totalAllocated and unallocatedBudget.
+- POST /api/events/{eventId}/budget accepts category (1–50 characters),
+  owner (1–150 characters), plannedAmount (0–9999999999999.99), returns 201.
+- PUT /api/events/{eventId}/budget/{id} updates owner and plannedAmount.
+- DELETE /api/events/{eventId}/budget/{id} removes an allocation.
+
+Missing events or allocations belonging to another event return 404.
+V5__create_budget_categories.sql creates the new table on backend startup;
+earlier migrations and existing financial records are preserved. Development
+access rules continue to apply; sign-in and role enforcement remain pending.
+
+Run the backend with the existing Java 21 and MySQL environment variables,
+then start Vite as described above. BudgetApiTests uses that MySQL database
+and removes its own records. Run `.\mvnw.cmd test` in backend, and
+`npm.cmd run build` plus `npm.cmd run lint` in frontend.
+
+## Purchase groups and quotations
+
+Open an event and choose **Purchase groups** (/#/events/{id}/purchases), or
+**Compare quotations** on Event Overview. First create a saved budget category
+in Planned budget, then create a purchase group such as Event T-shirts linked
+to that category. Add supplier quotations with quantity, unit price in LKR,
+and optional notes. Total equals quantity × unit price; enter prices including
+applicable charges. Attachments and role-based approvals are future work.
+
+Each group can have one preferred quotation. Selecting another replaces the
+previous preference; selection can also be cleared. Editing a quotation clears
+its preference so revised terms must be selected again. Removing a selected
+quotation clears that selection. Group/category links remain fixed in this
+milestone. A budget category linked to purchase groups cannot be removed;
+its owner and allocation amount can still be edited.
+
+Category comparisons sum preferred quotations from every group linked to that
+category. Negative remaining amounts show an over-budget warning. These are
+purchasing plans, and never create an expense or change income/balance totals.
+Record actual spending separately using the matching expense category.
+Actual expenses are not subtracted again from this quotation comparison.
+
+API prefix: `/api/events/{eventId}/purchase-groups`:
+
+- GET lists groups, quotations and category budget comparisons.
+- POST creates a group using name, budgetCategoryId and optional notes (201).
+- POST `/{groupId}/quotations` adds supplier, quantity, unitPrice, optional notes (201).
+- PUT `/{groupId}/quotations/{id}` updates quotation terms.
+- DELETE `/{groupId}/quotations/{id}` removes a quotation.
+- PUT `/{groupId}/selection/{id}` selects a quotation.
+- DELETE `/{groupId}/selection` clears the preference.
+
+Names/suppliers accept up to 150 characters, notes up to 1000, quantity is an
+integer from 1 to 1,000,000, unitPrice is 0.01–9999999999999.99 with two decimal
+places. Missing or cross-event/category/group references return 404. Quotation
+writes lock their purchase group to serialize concurrent preference changes.
+Development access rules continue to apply until sign-in is implemented.
+
+V6__create_purchase_groups_and_quotations.sql adds two tables and preserves
+existing migrations and data. Restart the Java 21 backend with the documented
+MySQL environment variables to apply it, then run Vite normally. No new
+dependencies are needed. `PurchaseApiTests` checks decimal totals, selection,
+concurrent selection, validation, event/group isolation, shared-category totals,
+and expense preservation, and removes its own test records.
+
+## Previous session-authentication setup (superseded)
+
+The current backend JWT contract and team-lead permissions are documented in
+[docs/AUTHENTICATION.md](docs/AUTHENTICATION.md). The following session instructions
+are retained from the earlier in-progress implementation and are not the current
+JWT API. The React client now uses the JWT API described in the linked document.
+
+### Historical sign-in and chapter permissions
+
+V7__create_chapter_users.sql adds local chapter accounts without changing event
+or financial data. Sign in with email and password; accounts are independent
+of Google Drive and Firebase. The first Chair email for this workspace is
+`admin@gmail.com`. No account password is committed or provided by default.
+
+For a new database, supply APP_BOOTSTRAP_CHAIR_EMAIL and
+APP_BOOTSTRAP_CHAIR_PASSWORD before starting the backend, as shown above.
+Bootstrap only runs while chapter_users is empty, and never resets an existing
+account's password. Remove these two variables from your shell or IntelliJ
+run configuration after initial creation. Existing accounts remain in MySQL.
+IntelliJ uses the same variables in **Run → Edit Configurations → Environment
+variables**. The Chair password must contain at least 12 characters and no
+more than 72 UTF-8 bytes. Passwords are stored as BCrypt hashes.
+
+| Role | Read chapter events and finances | Create events | Manage finances and quotations | Manage accounts |
+| --- | --- | --- | --- | --- |
+| Chair | Yes | Yes | Yes | Yes |
+| Finance Lead / Treasurer | Yes | No | Yes | No |
+| Member | Yes | No | No | No |
+
+Permissions are chapter-wide; event-specific membership is a future feature.
+The Chair can create accounts, change roles and disable/re-enable access under
+**Chapter accounts**. The last active Chair cannot be disabled or demoted.
+Changes apply to already signed-in users on their next API request. Everyone
+can change their own password by clicking their name → **My account**.
+Changing a password ends all sessions for that account. There is no public
+registration, Google sign-in, email invitation or forgotten-password flow yet.
+Share initial credentials with the intended member privately.
+
+API authentication uses an HttpOnly JSESSIONID session cookie, SameSite=Lax,
+30-minute inactivity timeout, and CSRF protection on all writes, including
+login/logout. React fetches a fresh token before writes. Passwords and session
+tokens are not stored in browser localStorage. API responses use 401 for missing
+sign-in and 403 for insufficient access or invalid CSRF tokens. `/actuator/health`
+remains public; protected financial APIs no longer allow anonymous access.
+Earlier README references to public development access are superseded here.
+
+- GET /api/auth/csrf returns token/headerName and initializes the session.
+- POST /api/auth/login accepts form-urlencoded email/password plus CSRF header.
+- GET /api/auth/me returns the signed-in account, without password information.
+- POST /api/auth/logout ends the session (204).
+- PUT /api/auth/password accepts currentPassword/newPassword and ends sessions (204).
+- GET/POST /api/users and PUT /api/users/{id} are Chair-only account management.
+
+For deployment, serve React and `/api` through the same HTTPS origin and set
+APP_SESSION_COOKIE_SECURE=true. Use separate development/production credentials
+and protect secrets in the hosting environment. Sessions currently live in
+backend memory, so a restart requires signing in again; multiple instances need
+shared sessions or sticky routing. Configure login rate limits at the reverse
+proxy before public deployment. This milestone does not connect Google Drive.
+
+Tests use real cookie sessions, CSRF tokens and isolated test accounts, with
+the existing MySQL settings. They test role restrictions, disabled accounts,
+password changes, logout, validation, and preservation of financial behavior.
+Test accounts and financial test records are cleaned up afterward.
+
+## JWT backend authentication
+
+See [Authentication architecture, permissions and setup](docs/AUTHENTICATION.md).
+The backend requires RSA key paths and bearer tokens. React uses JSON login,
+in-memory access tokens, shared refresh requests, and role-aware navigation. No Google Drive
+or Firebase storage is connected by this authentication milestone.
+
+Verified locally on 2026-11-25: browser sign-in, restoration after reload, sign-out,
+and loading an existing event overview. Frontend build, lint, and five authentication
+client tests passed. Run `npm.cmd test` from `frontend` for these tests; they mock
+HTTP responses and do not change the chapter database. Open `http://localhost:5173`
+and press Ctrl+F5 if an older frontend is still loaded.

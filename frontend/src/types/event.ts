@@ -4,7 +4,11 @@ export interface EventRecord {
   description: string
   eventDate: string
   venue: string
-  plannedBudget: number
+  plannedBudget?: number
+  term?: string | null
+  financeLead?: string | null
+  status?: string
+  expectedParticipants?: number | null
 }
 
 export interface CreateEventRequest {
@@ -13,4 +17,8 @@ export interface CreateEventRequest {
   eventDate: string
   venue: string
   plannedBudget: number
+  term?: string | null
+  financeLead?: string | null
+  status?: string
+  expectedParticipants?: number | null
 }

@@ -11,15 +11,15 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ContextConfiguration(initializers = JwtTestInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class EventApiTests {
+class EventApiTests extends AuthenticatedApiTest {
     @LocalServerPort
     private int port;
 
     @Autowired
     private EventRepository repository;
 
-    private final HttpClient client = HttpClient.newHttpClient();
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Test
@@ -65,15 +65,40 @@ class EventApiTests {
         assertEquals(404, get("/api/events/0").statusCode());
     }
 
+
+    @Test
+    void persistsEventSetupDetailsAndValidatesParticipants() throws Exception {
+        HttpResponse<String> response = post("""
+                {"name":"Setup details test","description":"","eventDate":"2026-12-01",
+                 "venue":"SLIIT","plannedBudget":0,"term":"2026 / 2027",
+                 "financeLead":"Test Lead","status":"In progress","expectedParticipants":100}
+                """);
+        assertEquals(201, response.statusCode(), response.body());
+        long id = mapper.readTree(response.body()).get("id").asLong();
+        try {
+            JsonNode saved = mapper.readTree(get("/api/events/" + id).body());
+            assertEquals("2026 / 2027", saved.get("term").asText());
+            assertEquals("Test Lead", saved.get("financeLead").asText());
+            assertEquals("In progress", saved.get("status").asText());
+            assertEquals(100, saved.get("expectedParticipants").asInt());
+        } finally {
+            repository.deleteById(id);
+        }
+        assertEquals(400, post("""
+                {"name":"Invalid setup","description":"","eventDate":"2026-12-01",
+                 "venue":"SLIIT","plannedBudget":0,"status":"Unknown","expectedParticipants":-1}
+                """).statusCode());
+    }
+
     private HttpResponse<String> post(String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri("/api/events"))
+        return client.send(authenticatedRequest(uri("/api/events"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> get(String path) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri(path)).GET().build(),
+        return client.send(authenticatedRequest(uri(path)).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 

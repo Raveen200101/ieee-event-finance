@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createExpense, getExpenses } from '../api/expenses'
@@ -5,7 +6,8 @@ import type { EventExpenses } from '../types/expense'
 
 const currency = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' })
 
-export function ExpensePanel({ eventId }: { eventId: number }) {
+export function ExpensePanel({ eventId, onSaved }: { eventId: number; onSaved: () => void }) {
+  const { canManageFinance } = useAuth()
   const [data, setData] = useState<EventExpenses | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -34,6 +36,7 @@ export function ExpensePanel({ eventId }: { eventId: number }) {
         amount: Number(fields.get('amount')),
         expenseDate: String(fields.get('expenseDate')),
       })
+      onSaved()
       form.reset()
       setNotice('Expense saved.')
       setData(await getExpenses(eventId))
@@ -49,7 +52,7 @@ export function ExpensePanel({ eventId }: { eventId: number }) {
       <h3>Expenses</h3>
       {error && <div role="alert" className="error"><p>{error}</p><button type="button" onClick={() => setRefresh((value) => value + 1)}>Refresh expenses</button></div>}
       {notice && <p role="status">{notice}</p>}
-      {!data && !error && <p role="status">Loading expenses…</p>}
+      {!data && !error && <p role="status">Loading expenses...</p>}
       {data && <>
         <dl>
           <dt>Total spent</dt><dd>{currency.format(data.totalSpent)}</dd>
@@ -61,13 +64,13 @@ export function ExpensePanel({ eventId }: { eventId: number }) {
           {data.expenses.map((expense) => (
             <li key={expense.id}>
               <strong>{expense.description}</strong>
-              <span>{expense.category} · {expense.expenseDate}</span>
+              <span>{expense.category} &middot; {expense.expenseDate}</span>
               <span>{currency.format(expense.amount)}</span>
             </li>
           ))}
         </ul>
       </>}
-      <h3>Add expense</h3>
+      {canManageFinance && <><h3>Add expense</h3>
       <form onSubmit={submit}>
         <fieldset disabled={saving || !data}>
           <label>Expense description<input name="description" required maxLength={500} /></label>
@@ -78,9 +81,9 @@ export function ExpensePanel({ eventId }: { eventId: number }) {
           </datalist>
           <label>Amount (LKR)<input name="amount" type="number" min="0.01" max="9999999999999.99" step="0.01" required /></label>
           <label>Expense date<input name="expenseDate" type="date" required /></label>
-          <button type="submit">{saving ? 'Saving…' : 'Add expense'}</button>
+          <button type="submit">{saving ? 'Saving...' : 'Add expense'}</button>
         </fieldset>
-      </form>
+      </form></>}
     </section>
   )
 }
