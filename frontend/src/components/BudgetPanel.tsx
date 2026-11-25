@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { deleteBudget, getBudget, saveBudget } from '../api/budgets'
@@ -26,6 +27,7 @@ export function BudgetTable({ budget, onEdit, onDelete, busy }: {
 }
 
 export function BudgetPanel({ eventId }: { eventId: number }) {
+  const { canManageFinance } = useAuth()
   const [budget, setBudget] = useState<EventBudget>()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -79,8 +81,8 @@ export function BudgetPanel({ eventId }: { eventId: number }) {
         <div className="metric"><span>Actual expenses</span><strong>LKR {money(budget.totalActual)}</strong><small>Includes unallocated categories</small></div>
       </div>
       {budget.unallocatedBudget < 0 && <p role="status" className="error">Category allocations exceed the event budget. Review your allocations.</p>}
-      <BudgetTable budget={budget} onEdit={edit} onDelete={remove} busy={busy} />
-      <section className="panel budget-form">
+      <BudgetTable budget={budget} onEdit={canManageFinance ? edit : undefined} onDelete={canManageFinance ? remove : undefined} busy={busy} />
+      {canManageFinance && <section className="panel budget-form">
         <h2>{editing ? `Edit ${category} allocation` : 'Add category allocation'}</h2>
         <form ref={form} onSubmit={submit}><fieldset disabled={busy}><div className="form-grid">
           <label>Category<input name="category" required maxLength={50} value={category} disabled={!!editing} onChange={(event) => setCategory(event.target.value)} list="budget-category-suggestions" /></label>
@@ -90,7 +92,7 @@ export function BudgetPanel({ eventId }: { eventId: number }) {
         </div><p className="field-help">Use the same category name when recording expenses. Responsible people are entered as names until team membership is available. Editing preserves the category name.</p>
           <div className="actions form-actions"><button type="submit">{busy ? 'Saving...' : editing ? 'Save changes' : 'Add allocation'}</button>{(editing || category || owner || amount) && <button type="button" className="secondary" onClick={reset}>Cancel</button>}</div>
         </fieldset></form>
-      </section>
+      </section>}
     </>}
   </>
 }

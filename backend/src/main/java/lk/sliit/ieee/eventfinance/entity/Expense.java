@@ -22,6 +22,9 @@ public class Expense {
     @Column(nullable = false)
     private LocalDate expenseDate;
 
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name="created_by_id") private ChapterUser createdBy;
+    public void setCreatedBy(ChapterUser user) { createdBy=user; }
+    public Long getCreatedById() { return createdBy==null?null:createdBy.getId(); }
     protected Expense() {}
 
     public Expense(Event event, String description, String category, BigDecimal amount, LocalDate expenseDate) {
@@ -32,6 +35,7 @@ public class Expense {
         this.expenseDate = expenseDate;
     }
 
+    public void update(String description,String category,BigDecimal amount,LocalDate date) { this.description=description.strip();this.category=category.strip();this.amount=amount;this.expenseDate=date; }
     public Long getId() { return id; }
     public String getDescription() { return description; }
     public String getCategory() { return category; }

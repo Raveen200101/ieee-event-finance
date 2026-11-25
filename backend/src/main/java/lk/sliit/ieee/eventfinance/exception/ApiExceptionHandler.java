@@ -10,6 +10,14 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ProblemDetail authentication(org.springframework.security.core.AuthenticationException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,"Invalid credentials or authentication token.");
+    }
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail denied(org.springframework.security.access.AccessDeniedException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,"Access denied.");
+    }
     @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
     public ProblemDetail status(org.springframework.web.server.ResponseStatusException exception) {
         return ProblemDetail.forStatusAndDetail(exception.getStatusCode(), exception.getReason());

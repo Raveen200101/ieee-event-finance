@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { useAuth } from './AuthContext'
+import { roleLabels } from '../types/auth'
 import type { ReactNode } from 'react'
 import type { EventRecord } from '../types/event'
 
@@ -13,7 +16,7 @@ const navigation = [
   ['Documents', 'documents', ''],
   ['Official Excel report', 'report', ''],
   ['Terms & members', 'members', ''],
-  ['Team & invitations', 'members', ''],
+  ['Chapter accounts', 'members', '#/team'],
 ]
 
 function NavIcon({ kind }: { kind: string }) {
@@ -39,6 +42,14 @@ export function AppShell({ children, events, selected, page, term }: {
   page: string
   term: string
 }) {
+  const { user, logout, isChair, isAdmin, canManageFinance, canManagePurchases } = useAuth()
+  const [logoutError, setLogoutError] = useState('')
+  const [loggingOut, setLoggingOut] = useState(false)
+  async function signOut() {
+    setLoggingOut(true); setLogoutError('')
+    try { await logout() } catch (failure) { setLogoutError(failure instanceof Error ? failure.message : 'Unable to sign out.') }
+    finally { setLoggingOut(false) }
+  }
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -49,19 +60,23 @@ export function AppShell({ children, events, selected, page, term }: {
         <div className="nav-label">WORKSPACE</div>
         <nav aria-label="Chapter navigation">
           {navigation.map(([label, icon, destination]) => {
+            if (destination === '#/team' && !isAdmin) return null
+            if (destination === 'budget' && !isChair) return null
+            if (['expenses', 'income'].includes(destination) && !canManageFinance) return null
+            if (destination === 'purchases' && !canManagePurchases) return null
             let href = destination
             if (['event', 'budget', 'purchases', 'expenses', 'income'].includes(destination)) {
               href = selected ? `#/events/${selected.id}${destination === 'event' ? '' : '/' + destination}` : ''
             }
             const active = destination === '#/events' ? page === 'events' || page === 'new'
-              : destination === 'event' ? page === 'event'
+              : destination === '#/team' ? page === 'team' : destination === 'event' ? page === 'event'
               : destination === page
             return href && destination !== '#/chapter'
               ? <a key={label} href={href} aria-current={active ? 'page' : undefined}><NavIcon kind={icon} />{label}</a>
               : <button key={label} disabled title="Available in a later milestone"><NavIcon kind={icon} />{label}</button>
           })}
         </nav>
-        <div className="security-context"><strong>INTERNAL · IEEE SLIIT</strong><p>Local development workspace.<br />Sign-in and role assignments are pending.</p></div>
+        <div className="security-context"><strong>INTERNAL · IEEE SLIIT</strong><p>Private chapter workspace.<br />Access follows your assigned role.</p></div>
       </aside>
       <div className="main-panel">
         <header className="topbar">
@@ -69,9 +84,9 @@ export function AppShell({ children, events, selected, page, term }: {
             <option value="">Chapter workspace / {term}</option>
             {events.map((event) => <option key={event.id} value={event.id}>{event.name}</option>)}
           </select>
-          <div className="role-context"><span>WORKSPACE</span><strong>Local development</strong></div>
+          <div className="account-context"><a href="#/account">{user.displayName}<small>{roleLabels[user.role]}</small></a><button className="secondary" disabled={loggingOut} onClick={() => void signOut()}>{loggingOut ? 'Signing out...' : 'Sign out'}</button></div>
         </header>
-        <main className="workspace">{children}</main>
+        <main className="workspace">{logoutError && <p role="alert" className="error">{logoutError}</p>}{children}</main>
       </div>
     </div>
   )

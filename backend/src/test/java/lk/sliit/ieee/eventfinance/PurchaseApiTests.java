@@ -15,15 +15,15 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ContextConfiguration(initializers = JwtTestInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class PurchaseApiTests {
+class PurchaseApiTests extends AuthenticatedApiTest {
     @LocalServerPort private int port;
     @Autowired private EventRepository events;
     @Autowired private BudgetCategoryRepository budgets;
     @Autowired private PurchaseGroupRepository groups;
     @Autowired private QuotationRepository quotations;
     @Autowired private ExpenseRepository expenses;
-    private final HttpClient client = HttpClient.newHttpClient();
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Test
@@ -118,7 +118,7 @@ class PurchaseApiTests {
     }
     private JsonNode json(HttpResponse<String> response) throws Exception { return mapper.readTree(response.body()); }
     private HttpResponse<String> call(String path, String method, String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+        return client.send(authenticatedRequest(URI.create("http://127.0.0.1:" + port + path))
                 .header("Content-Type", "application/json")
                 .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
     }

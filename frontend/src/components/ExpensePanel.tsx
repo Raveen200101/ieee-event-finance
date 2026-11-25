@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createExpense, getExpenses } from '../api/expenses'
@@ -6,6 +7,7 @@ import type { EventExpenses } from '../types/expense'
 const currency = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' })
 
 export function ExpensePanel({ eventId, onSaved }: { eventId: number; onSaved: () => void }) {
+  const { canManageFinance } = useAuth()
   const [data, setData] = useState<EventExpenses | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -68,7 +70,7 @@ export function ExpensePanel({ eventId, onSaved }: { eventId: number; onSaved: (
           ))}
         </ul>
       </>}
-      <h3>Add expense</h3>
+      {canManageFinance && <><h3>Add expense</h3>
       <form onSubmit={submit}>
         <fieldset disabled={saving || !data}>
           <label>Expense description<input name="description" required maxLength={500} /></label>
@@ -81,7 +83,7 @@ export function ExpensePanel({ eventId, onSaved }: { eventId: number; onSaved: (
           <label>Expense date<input name="expenseDate" type="date" required /></label>
           <button type="submit">{saving ? 'Saving...' : 'Add expense'}</button>
         </fieldset>
-      </form>
+      </form></>}
     </section>
   )
 }

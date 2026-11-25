@@ -3,6 +3,8 @@ Event finance and procurement system for the IEEE Computer Society Chapter at SL
 
 ## Local setup
 
+The backend and React client now use JWT authentication. Read [the current authentication setup](docs/AUTHENTICATION.md) before restarting the backend. RSA keys are required. React stores access tokens in memory and restores sign-in through the refresh cookie.
+
 Use JDK 21, Node.js 22.12 or newer, npm, and MySQL. The backend
 includes the Maven Wrapper. Run the following commands from the repository
 root in separate PowerShell windows.
@@ -37,9 +39,20 @@ role's password.
 ```powershell
 Set-Location .\backend
 $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot'
+# Generate the RSA pair once; keep it outside Git.
+if (-not (Test-Path '.local/jwt-keys/jwt.private.pem')) {
+    & "$env:JAVA_HOME\bin\java.exe" scripts/GenerateJwtKeys.java .local/jwt-keys
+}
+$env:JWT_PRIVATE_KEY_PATH = (Resolve-Path '.local/jwt-keys/jwt.private.pem').Path
+$env:JWT_PUBLIC_KEY_PATH = (Resolve-Path '.local/jwt-keys/jwt.public.pem').Path
+$env:AUTH_COOKIE_SECURE = 'false' # Local HTTP only; true in production
+
 $env:SPRING_DATASOURCE_URL = 'jdbc:mysql://localhost:3306/ieee_event_finance_dev'
 $env:SPRING_DATASOURCE_USERNAME = 'ieee_event_finance'
 $env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'MySQL password' -AsSecureString)).Password
+# First startup only, when chapter_users is empty:
+$env:APP_BOOTSTRAP_CHAIR_EMAIL = 'admin@gmail.com'
+$env:APP_BOOTSTRAP_CHAIR_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'New Chair password (at least 12 characters)' -AsSecureString)).Password
 .\mvnw.cmd -version
 .\mvnw.cmd spring-boot:run
 ```
@@ -269,3 +282,81 @@ MySQL environment variables to apply it, then run Vite normally. No new
 dependencies are needed. `PurchaseApiTests` checks decimal totals, selection,
 concurrent selection, validation, event/group isolation, shared-category totals,
 and expense preservation, and removes its own test records.
+
+## Previous session-authentication setup (superseded)
+
+The current backend JWT contract and team-lead permissions are documented in
+[docs/AUTHENTICATION.md](docs/AUTHENTICATION.md). The following session instructions
+are retained from the earlier in-progress implementation and are not the current
+JWT API. The React client now uses the JWT API described in the linked document.
+
+### Historical sign-in and chapter permissions
+
+V7__create_chapter_users.sql adds local chapter accounts without changing event
+or financial data. Sign in with email and password; accounts are independent
+of Google Drive and Firebase. The first Chair email for this workspace is
+`admin@gmail.com`. No account password is committed or provided by default.
+
+For a new database, supply APP_BOOTSTRAP_CHAIR_EMAIL and
+APP_BOOTSTRAP_CHAIR_PASSWORD before starting the backend, as shown above.
+Bootstrap only runs while chapter_users is empty, and never resets an existing
+account's password. Remove these two variables from your shell or IntelliJ
+run configuration after initial creation. Existing accounts remain in MySQL.
+IntelliJ uses the same variables in **Run → Edit Configurations → Environment
+variables**. The Chair password must contain at least 12 characters and no
+more than 72 UTF-8 bytes. Passwords are stored as BCrypt hashes.
+
+| Role | Read chapter events and finances | Create events | Manage finances and quotations | Manage accounts |
+| --- | --- | --- | --- | --- |
+| Chair | Yes | Yes | Yes | Yes |
+| Finance Lead / Treasurer | Yes | No | Yes | No |
+| Member | Yes | No | No | No |
+
+Permissions are chapter-wide; event-specific membership is a future feature.
+The Chair can create accounts, change roles and disable/re-enable access under
+**Chapter accounts**. The last active Chair cannot be disabled or demoted.
+Changes apply to already signed-in users on their next API request. Everyone
+can change their own password by clicking their name → **My account**.
+Changing a password ends all sessions for that account. There is no public
+registration, Google sign-in, email invitation or forgotten-password flow yet.
+Share initial credentials with the intended member privately.
+
+API authentication uses an HttpOnly JSESSIONID session cookie, SameSite=Lax,
+30-minute inactivity timeout, and CSRF protection on all writes, including
+login/logout. React fetches a fresh token before writes. Passwords and session
+tokens are not stored in browser localStorage. API responses use 401 for missing
+sign-in and 403 for insufficient access or invalid CSRF tokens. `/actuator/health`
+remains public; protected financial APIs no longer allow anonymous access.
+Earlier README references to public development access are superseded here.
+
+- GET /api/auth/csrf returns token/headerName and initializes the session.
+- POST /api/auth/login accepts form-urlencoded email/password plus CSRF header.
+- GET /api/auth/me returns the signed-in account, without password information.
+- POST /api/auth/logout ends the session (204).
+- PUT /api/auth/password accepts currentPassword/newPassword and ends sessions (204).
+- GET/POST /api/users and PUT /api/users/{id} are Chair-only account management.
+
+For deployment, serve React and `/api` through the same HTTPS origin and set
+APP_SESSION_COOKIE_SECURE=true. Use separate development/production credentials
+and protect secrets in the hosting environment. Sessions currently live in
+backend memory, so a restart requires signing in again; multiple instances need
+shared sessions or sticky routing. Configure login rate limits at the reverse
+proxy before public deployment. This milestone does not connect Google Drive.
+
+Tests use real cookie sessions, CSRF tokens and isolated test accounts, with
+the existing MySQL settings. They test role restrictions, disabled accounts,
+password changes, logout, validation, and preservation of financial behavior.
+Test accounts and financial test records are cleaned up afterward.
+
+## JWT backend authentication
+
+See [Authentication architecture, permissions and setup](docs/AUTHENTICATION.md).
+The backend requires RSA key paths and bearer tokens. React uses JSON login,
+in-memory access tokens, shared refresh requests, and role-aware navigation. No Google Drive
+or Firebase storage is connected by this authentication milestone.
+
+Verified locally on 2026-11-25: browser sign-in, restoration after reload, sign-out,
+and loading an existing event overview. Frontend build, lint, and five authentication
+client tests passed. Run `npm.cmd test` from `frontend` for these tests; they mock
+HTTP responses and do not change the chapter database. Open `http://localhost:5173`
+and press Ctrl+F5 if an older frontend is still loaded.

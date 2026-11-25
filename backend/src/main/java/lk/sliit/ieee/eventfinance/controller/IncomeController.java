@@ -27,4 +27,6 @@ public class IncomeController {
     public EventIncomesResponse findByEvent(@PathVariable Long eventId) {
         return service.findByEvent(eventId);
     }
+    @PutMapping("/{id}")
+    public IncomeResponse update(@PathVariable Long eventId,@PathVariable Long id,@Valid @RequestBody CreateIncomeRequest request) { return service.update(eventId,id,request); }
 }

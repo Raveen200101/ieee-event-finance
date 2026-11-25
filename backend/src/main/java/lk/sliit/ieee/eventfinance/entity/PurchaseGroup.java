@@ -12,6 +12,9 @@ public class PurchaseGroup {
     @JoinColumn(name = "budget_category_id", nullable = false) private BudgetCategory budgetCategory;
     @Column(nullable = false, length = 150) private String name;
     @Column(nullable = false, length = 1000) private String notes;
+    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="owner_id") private ChapterUser owner;
+    public void assignOwner(ChapterUser user) { owner=user; }
+    public Long getOwnerId() { return owner==null?null:owner.getId(); }
     protected PurchaseGroup() {}
     public PurchaseGroup(Event event, BudgetCategory budgetCategory, String name, String notes) {
         this.event = event;

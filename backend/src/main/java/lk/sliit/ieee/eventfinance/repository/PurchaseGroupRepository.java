@@ -9,5 +9,6 @@ public interface PurchaseGroupRepository extends JpaRepository<PurchaseGroup, Lo
     List<PurchaseGroup> findByEventIdOrderByIdAsc(Long eventId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PurchaseGroup> findByIdAndEventId(Long id, Long eventId);
+    Optional<PurchaseGroup> findFirstByIdAndEventId(Long id,Long eventId);
     boolean existsByBudgetCategoryId(Long categoryId);
 }

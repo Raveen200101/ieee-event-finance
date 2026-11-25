@@ -14,13 +14,13 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ContextConfiguration(initializers = JwtTestInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class BudgetApiTests {
+class BudgetApiTests extends AuthenticatedApiTest {
     @LocalServerPort private int port;
     @Autowired private EventRepository events;
     @Autowired private ExpenseRepository expenses;
     @Autowired private BudgetCategoryRepository budgets;
-    private final HttpClient client = HttpClient.newHttpClient();
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Test
@@ -98,7 +98,7 @@ class BudgetApiTests {
     }
     private JsonNode json(HttpResponse<String> response) throws Exception { return mapper.readTree(response.body()); }
     private HttpResponse<String> call(Long eventId, String suffix, String method, String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/events/" + eventId + "/budget" + suffix))
+        return client.send(authenticatedRequest(URI.create("http://127.0.0.1:" + port + "/api/events/" + eventId + "/budget" + suffix))
                 .header("Content-Type", "application/json")
                 .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body)).build(),
                 HttpResponse.BodyHandlers.ofString());

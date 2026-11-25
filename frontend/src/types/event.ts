@@ -4,7 +4,7 @@ export interface EventRecord {
   description: string
   eventDate: string
   venue: string
-  plannedBudget: number
+  plannedBudget?: number
   term?: string | null
   financeLead?: string | null
   status?: string

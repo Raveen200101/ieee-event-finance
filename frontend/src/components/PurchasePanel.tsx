@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getBudget } from '../api/budgets'
@@ -8,6 +9,7 @@ import type { PurchaseGroup, Quotation } from '../types/purchase'
 const money = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', maximumFractionDigits: 2 }).format(amount)
 
 export function PurchasePanel({ eventId }: { eventId: number }) {
+  const { isChair, canManagePurchases } = useAuth()
   const [groups, setGroups] = useState<PurchaseGroup[]>()
   const [budget, setBudget] = useState<EventBudget>()
   const [error, setError] = useState('')
@@ -26,11 +28,11 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
 
   useEffect(() => {
     let active = true
-    Promise.all([getPurchases(eventId), getBudget(eventId)]).then(([purchases, allocations]) => {
+    Promise.all([getPurchases(eventId), isChair ? getBudget(eventId) : Promise.resolve(undefined)]).then(([purchases, allocations]) => {
       if (active) { setGroups(purchases); setBudget(allocations); setError('') }
     }).catch((failure: Error) => { if (active) setError(failure.message) })
     return () => { active = false }
-  }, [eventId, revision])
+  }, [eventId, revision, isChair])
 
   async function mutate(action: () => Promise<PurchaseGroup[]>, message: string, after?: () => void) {
     setBusy(true); setError(''); setNotice('')
@@ -62,23 +64,23 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
     {groups && <>
       {!groups.length && <section className="panel"><h2>No purchase groups yet</h2><p>Create a group for an item or service, then add supplier quotations to compare.</p></section>}
       {groups.map((group) => <section key={group.id} className="panel purchase-group" aria-label={group.name}>
-        <div className="page-heading"><div><h2>{group.name}</h2><p>{group.category}{group.notes && ` · ${group.notes}`}</p></div><button disabled={busy} onClick={() => startQuote(group)}>+ Add quotation</button></div>
-        <p>Category budget: <strong>{money(group.categoryBudget)}</strong> · Preferred quotations across this category: <strong>{money(group.categorySelectedTotal)}</strong></p>
-        <p className={group.categoryRemaining < 0 ? 'error' : ''}>{group.categoryRemaining < 0 ? 'Selected costs exceed the category budget by ' : 'Category budget remaining after selected costs: '}{money(Math.abs(group.categoryRemaining))}</p>
-        <div className="table-scroll"><table className="quotation-table"><thead><tr><th>Supplier</th><th>Quantity</th><th>Unit price</th><th>Total</th><th>Notes</th><th>Decision</th><th>Actions</th></tr></thead><tbody>
+        <div className="page-heading"><div><h2>{group.name}</h2><p>{group.category}{group.notes && ` · ${group.notes}`}</p></div>{canManagePurchases && <button disabled={busy} onClick={() => startQuote(group)}>+ Add quotation</button>}</div>
+        {isChair && <p>Category budget: <strong>{money(group.categoryBudget)}</strong> · Preferred quotations across this category: <strong>{money(group.categorySelectedTotal)}</strong></p>}
+        {isChair && <p className={group.categoryRemaining < 0 ? 'error' : ''}>{group.categoryRemaining < 0 ? 'Selected costs exceed the category budget by ' : 'Category budget remaining after selected costs: '}{money(Math.abs(group.categoryRemaining))}</p>}
+        <div className="table-scroll"><table className="quotation-table"><thead><tr><th>Supplier</th><th>Quantity</th><th>Unit price</th><th>Total</th><th>Notes</th><th>Decision</th>{canManagePurchases && <th>Actions</th>}</tr></thead><tbody>
           {group.quotations.map((quote) => <tr key={quote.id} className={quote.selected ? 'selected-quotation' : ''}>
             <td>{quote.supplier}</td><td>{quote.quantity.toLocaleString()}</td><td>{money(quote.unitPrice)}</td><td>{money(quote.total)}</td><td>{quote.notes || '—'}</td>
-            <td>{quote.selected ? 'Preferred' : 'Not selected'}</td><td><div className="actions">
-              <button className="secondary" disabled={busy} onClick={() => void mutate(() => selectQuotation(eventId, group.id, quote.selected ? undefined : quote.id), quote.selected ? 'Selection cleared.' : 'Preferred quotation selected.')}>{quote.selected ? 'Clear selection' : 'Select'}</button>
-              <button className="secondary" disabled={busy} onClick={() => startQuote(group, quote)}>Edit</button>
-              <button className="secondary" disabled={busy} aria-label={`Remove ${quote.supplier} quotation`} onClick={() => {
+            <td>{quote.selected ? 'Preferred' : 'Not selected'}</td>{canManagePurchases && <td><div className="actions">
+              {isChair && <button className="secondary" disabled={busy} onClick={() => void mutate(() => selectQuotation(eventId, group.id, quote.selected ? undefined : quote.id), quote.selected ? 'Selection cleared.' : 'Preferred quotation selected.')}>{quote.selected ? 'Clear selection' : 'Select'}</button>}
+              <button className="secondary" disabled={busy || (!isChair && quote.selected)} onClick={() => startQuote(group, quote)}>Edit</button>
+              <button className="secondary" disabled={busy || (!isChair && quote.selected)} aria-label={`Remove ${quote.supplier} quotation`} onClick={() => {
                 if (window.confirm(`Remove the quotation from ${quote.supplier}?${quote.selected ? ' This also clears its selection.' : ''}`)) void mutate(() => removeQuotation(eventId, group.id, quote.id), 'Quotation removed.', () => { if (quoteId === quote.id) resetQuote() })
               }}>Remove</button>
-            </div></td>
+            </div></td>}
           </tr>)}
         </tbody></table></div>
         {!group.quotations.length && <p className="empty-state">No quotations yet. Add supplier, quantity and unit price to start comparing.</p>}
-        {editingGroup?.id === group.id && <form className="quotation-form" onSubmit={submitQuote}>
+        {canManagePurchases && editingGroup?.id === group.id && <form className="quotation-form" onSubmit={submitQuote}>
           <h3>{quoteId ? 'Edit quotation' : 'Add quotation'}</h3>
           <fieldset disabled={busy}><div className="form-grid">
             <label>Supplier<input required maxLength={150} value={supplier} onChange={(event) => setSupplier(event.target.value)} /></label>
@@ -91,7 +93,7 @@ export function PurchasePanel({ eventId }: { eventId: number }) {
           </fieldset>
         </form>}
       </section>)}
-      {budget && <section className="panel budget-form"><h2>Create purchase group</h2>
+      {isChair && budget && <section className="panel budget-form"><h2>Create purchase group</h2>
         {!allocated.length ? <p>Add a category in <a href={`#/events/${eventId}/budget`}>Planned budget</a> before creating a purchase group.</p> :
           <form onSubmit={addGroup}><fieldset disabled={busy}><div className="form-grid">
             <label>Group name<input required maxLength={150} value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Event T-shirts" /></label>
