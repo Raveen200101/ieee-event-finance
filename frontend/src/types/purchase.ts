@@ -12,6 +12,7 @@ export interface Quotation extends QuotationInput {
 export interface PurchaseGroup {
   id: number
   name: string
+  ownerId: number | null
   notes: string
   budgetCategoryId: number
   category: string

@@ -11,15 +11,15 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ContextConfiguration(initializers = JwtTestInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class EventApiTests {
+class EventApiTests extends AuthenticatedApiTest {
     @LocalServerPort
     private int port;
 
     @Autowired
     private EventRepository repository;
 
-    private final HttpClient client = HttpClient.newHttpClient();
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Test
@@ -91,14 +91,14 @@ class EventApiTests {
     }
 
     private HttpResponse<String> post(String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri("/api/events"))
+        return client.send(authenticatedRequest(uri("/api/events"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> get(String path) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri(path)).GET().build(),
+        return client.send(authenticatedRequest(uri(path)).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 

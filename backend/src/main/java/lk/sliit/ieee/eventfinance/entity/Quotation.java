@@ -14,6 +14,9 @@ public class Quotation {
     @Column(nullable = false, precision = 15, scale = 2) private BigDecimal unitPrice;
     @Column(nullable = false, length = 1000) private String notes;
     @Column(nullable = false) private boolean selected;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name="created_by_id") private ChapterUser createdBy;
+    public void setCreatedBy(ChapterUser user) { createdBy=user; }
+    public Long getCreatedById() { return createdBy==null?null:createdBy.getId(); }
     protected Quotation() {}
     public Quotation(PurchaseGroup group, String supplier, Integer quantity, BigDecimal unitPrice, String notes) {
         this.purchaseGroup = group;

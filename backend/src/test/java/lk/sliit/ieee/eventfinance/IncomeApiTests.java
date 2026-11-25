@@ -17,10 +17,13 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ContextConfiguration(initializers = JwtTestInitializer.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class IncomeApiTests {
+class IncomeApiTests extends AuthenticatedApiTest {
     @LocalServerPort
     private int port;
+    @Autowired
+    private lk.sliit.ieee.eventfinance.repository.IncomeSourceRepository sources;
     @Autowired
     private EventRepository events;
     @Autowired
@@ -28,7 +31,6 @@ class IncomeApiTests {
     @Autowired
     private ExpenseRepository expenses;
 
-    private final HttpClient client = HttpClient.newHttpClient();
     private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Test
@@ -77,18 +79,19 @@ class IncomeApiTests {
         } finally {
             incomes.deleteAll(incomes.findByEventIdOrderByIncomeDateDescIdDesc(first.getId()));
             expenses.deleteAll(expenses.findByEventIdOrderByExpenseDateDescIdDesc(first.getId()));
+            sources.deleteAll(sources.findByEventIdOrderByNameAsc(first.getId()));
             events.deleteById(first.getId());
             events.deleteById(second.getId());
         }
     }
 
     private HttpResponse<String> get(Long eventId) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri(eventId)).GET().build(),
+        return client.send(authenticatedRequest(uri(eventId)).GET().build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> post(Long eventId, String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(uri(eventId))
+        return client.send(authenticatedRequest(uri(eventId))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                 HttpResponse.BodyHandlers.ofString());

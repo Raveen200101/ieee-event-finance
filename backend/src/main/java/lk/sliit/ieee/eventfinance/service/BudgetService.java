@@ -8,10 +8,12 @@ import lk.sliit.ieee.eventfinance.exception.EventNotFoundException;
 import lk.sliit.ieee.eventfinance.repository.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@PreAuthorize("@access.committee(authentication)")
 @Transactional(readOnly = true)
 public class BudgetService {
     private final EventRepository events;

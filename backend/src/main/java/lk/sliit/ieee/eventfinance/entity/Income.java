@@ -22,6 +22,9 @@ public class Income {
     @Column(nullable = false)
     private LocalDate incomeDate;
 
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name="created_by_id") private ChapterUser createdBy;
+    public void setCreatedBy(ChapterUser user) { createdBy=user; }
+    public Long getCreatedById() { return createdBy==null?null:createdBy.getId(); }
     protected Income() {}
 
     public Income(Event event, String description, String source, BigDecimal amount, LocalDate incomeDate) {
@@ -32,6 +35,7 @@ public class Income {
         this.incomeDate = incomeDate;
     }
 
+    public void update(String description,String source,BigDecimal amount,LocalDate date) { this.description=description.strip();this.source=source.strip();this.amount=amount;this.incomeDate=date; }
     public Long getId() { return id; }
     public String getDescription() { return description; }
     public String getSource() { return source; }

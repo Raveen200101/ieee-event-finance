@@ -36,4 +36,8 @@ public class PurchaseController {
     public List<PurchaseGroupResponse> clear(@PathVariable Long eventId, @PathVariable Long groupId) {
         return service.select(eventId, groupId, null);
     }
+    @PutMapping("/{groupId}/owner") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void owner(@PathVariable Long eventId,@PathVariable Long groupId,@Valid @RequestBody AssignPurchaseOwnerRequest request) { service.assignOwner(eventId,groupId,request.userId()); }
+    @DeleteMapping("/{groupId}/owner") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearOwner(@PathVariable Long eventId,@PathVariable Long groupId) { service.clearOwner(eventId,groupId); }
 }

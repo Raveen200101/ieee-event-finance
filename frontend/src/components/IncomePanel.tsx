@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createIncome, getIncomes } from '../api/incomes'
@@ -6,6 +7,7 @@ import type { EventIncomes } from '../types/income'
 const currency = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' })
 
 export function IncomePanel({ eventId, revision }: { eventId: number; revision: number }) {
+  const { canManageFinance } = useAuth()
   const [data, setData] = useState<EventIncomes | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -67,7 +69,7 @@ export function IncomePanel({ eventId, revision }: { eventId: number; revision: 
           ))}
         </ul>
       </>}
-      <h3>Add income</h3>
+      {canManageFinance && <><h3>Add income</h3>
       <form onSubmit={submit}>
         <fieldset disabled={saving || !data}>
           <label>Income description<input name="description" required maxLength={500} /></label>
@@ -79,7 +81,7 @@ export function IncomePanel({ eventId, revision }: { eventId: number; revision: 
           <label>Income date<input name="incomeDate" type="date" required /></label>
           <button type="submit">{saving ? 'Saving...' : 'Add income'}</button>
         </fieldset>
-      </form>
+      </form></>}
     </section>
   )
 }

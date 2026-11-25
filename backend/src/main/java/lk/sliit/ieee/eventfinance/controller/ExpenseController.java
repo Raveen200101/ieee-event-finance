@@ -27,4 +27,6 @@ public class ExpenseController {
     public EventExpensesResponse findByEvent(@PathVariable Long eventId) {
         return service.findByEvent(eventId);
     }
+    @PutMapping("/{id}")
+    public ExpenseResponse update(@PathVariable Long eventId,@PathVariable Long id,@Valid @RequestBody CreateExpenseRequest request) { return service.update(eventId,id,request); }
 }

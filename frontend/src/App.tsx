@@ -7,6 +7,10 @@ import { EventForm } from './components/EventForm'
 import { EventOverview } from './components/EventOverview'
 import { ExpensePanel } from './components/ExpensePanel'
 import { IncomePanel } from './components/IncomePanel'
+import { TeamPanel } from './components/TeamPanel'
+import { EventTeamPanel } from './components/EventTeamPanel'
+import { AccountPanel } from './components/AccountPanel'
+import { useAuth } from './components/AuthContext'
 import { BudgetPanel } from './components/BudgetPanel'
 import { PurchasePanel } from './components/PurchasePanel'
 import type { EventRecord } from './types/event'
@@ -16,6 +20,7 @@ import type { EventIncomes } from './types/income'
 const currentYear = new Date().getFullYear()
 
 function App() {
+  const { isChair, canManageFinance, canManagePurchases } = useAuth()
   const [route, setRoute] = useState(window.location.hash || '#/events')
   const [events, setEvents] = useState<EventRecord[]>([])
   const [selected, setSelected] = useState<EventRecord | null>(null)
@@ -32,7 +37,7 @@ function App() {
   const [revision, setRevision] = useState(0)
   const segments = route.replace(/^#\//, '').split('/')
   const eventId = /^\d+$/.test(segments[1] || '') ? Number(segments[1]) : undefined
-  const page = segments[1] === 'new' ? 'new' : eventId ? (segments[2] || 'event') : 'events'
+  const page = segments[0] === 'team' ? 'team' : segments[0] === 'account' ? 'account' : segments[1] === 'new' ? 'new' : eventId ? (segments[2] || 'event') : 'events'
   const displayTerm = term || `${currentYear} / ${currentYear + 1}`
 
   useEffect(() => {
@@ -59,6 +64,7 @@ function App() {
 
   useEffect(() => {
     let active = true
+    if (!canManageFinance) return () => { active = false }
     Promise.all(events.map((event) => getExpenses(event.id)))
       .then((results) => {
         if (active) {
@@ -68,7 +74,7 @@ function App() {
       })
       .catch((failure: Error) => { if (active) setFinanceError(failure.message) })
     return () => { active = false }
-  }, [events, revision])
+  }, [events, revision, canManageFinance])
 
   useEffect(() => {
     let active = true
@@ -82,12 +88,12 @@ function App() {
 
   useEffect(() => {
     let active = true
-    if (!eventId) return () => { active = false }
+    if (!eventId || !canManageFinance) return () => { active = false }
     getIncomes(eventId)
       .then((result) => { if (active) setIncome(result) })
       .catch((failure: Error) => { if (active) setFinanceError(failure.message) })
     return () => { active = false }
-  }, [eventId, revision, route])
+  }, [eventId, revision, route, canManageFinance])
 
   function onCreated(event: EventRecord) {
     setEvents((previous) => [...previous, event].sort((a, b) => b.eventDate.localeCompare(a.eventDate) || b.id - a.id))
@@ -100,16 +106,16 @@ function App() {
     && (!status || (event.status || 'Planning') === status)
     && (!term || event.term === term),
   )
-  const title = page === 'new' ? 'Create event' : page === 'events' ? 'Events'
-    : page === 'purchases' ? 'Purchase groups' : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
+  const title = page === 'team' ? 'Chapter accounts' : page === 'account' ? 'My account' : page === 'new' ? 'Create event' : page === 'events' ? 'Events'
+    : page === 'members' ? 'Event team' : page === 'purchases' ? 'Purchase groups' : page === 'budget' ? 'Planned budget' : page === 'expenses' ? 'Itemized expenses' : page === 'income' ? 'Fundraising' : 'Event overview'
 
   return <AppShell events={events} selected={selected} page={page} term={displayTerm}>
     <p className="breadcrumb">{selected ? `EVENTS / ${selected.name.toUpperCase()} / ${title.toUpperCase()}` : `CHAPTER / ${title.toUpperCase()}`}</p>
     <div className="page-heading">
       <div><h1>{title}</h1><p>{page === 'events' ? 'Plan and manage chapter events in one place.' : page === 'new' ? 'Save the event details and accountable team.' : 'A clear view of your event’s financial position.'}</p></div>
-      {page === 'events' ? <a className="button" href="#/events/new">+ Create event</a>
+      {page === 'events' && isChair ? <a className="button" href="#/events/new">+ Create event</a>
         : page === 'new' ? <a className="button secondary" href="#/events">← Events</a>
-        : <button className="secondary" disabled title="Excel reporting is pending">View report →</button>}
+        : page !== 'events' && page !== 'team' && page !== 'account' ? <button className="secondary" disabled title="Excel reporting is pending">View report →</button> : null}
     </div>
     {error && <p role="alert" className="error">{error} Reload the page to try again.</p>}
     {notice && <p role="status" className="info-strip">{notice}</p>}
@@ -124,22 +130,26 @@ function App() {
       <section className="panel table-panel">
         <h2>All events</h2>
         <div className="table-scroll"><table><thead><tr><th>Event</th><th>Event date</th><th>Planned budget</th><th>Recorded actual</th><th>Status</th></tr></thead><tbody>
-          {filtered.map((event) => <tr key={event.id}><td><a className="event-link" href={`#/events/${event.id}`}>{event.name}</a></td><td>{new Date(event.eventDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td>{event.plannedBudget.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td><td>{expenses[event.id] ? expenses[event.id].totalSpent.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '—'}</td><td><a className="status-link" href={`#/events/${event.id}`}>{event.status || 'Planning'}{event.status === 'In progress' ? ' →' : ''}</a></td></tr>)}
+          {filtered.map((event) => <tr key={event.id}><td><a className="event-link" href={`#/events/${event.id}`}>{event.name}</a></td><td>{new Date(event.eventDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td>{event.plannedBudget?.toLocaleString('en-LK', { minimumFractionDigits: 2 }) ?? '—'}</td><td>{expenses[event.id] ? expenses[event.id].totalSpent.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '—'}</td><td><a className="status-link" href={`#/events/${event.id}`}>{event.status || 'Planning'}{event.status === 'In progress' ? ' →' : ''}</a></td></tr>)}
         </tbody></table></div>
         {loading && <p role="status" className="empty-state">Loading events...</p>}
         {!loading && !filtered.length && <p className="empty-state">{events.length ? 'No events match these filters.' : 'Create your first chapter event to get started.'}</p>}
         <div className="table-footer">{filtered.length} records · All amounts in LKR</div>
       </section>
     </>}
-    {page === 'new' && <EventForm onCreated={onCreated} onCancel={() => { window.location.hash = '/events' }} />}
+    {page === 'team' && <TeamPanel />}
+    {page === 'account' && <AccountPanel />}
+    {page === 'new' && !isChair && <p role="alert">Only the Chair can create events.</p>}
+    {page === 'new' && isChair && <EventForm onCreated={onCreated} onCancel={() => { window.location.hash = '/events' }} />}
     {eventId && detailsLoading && <p role="status">Loading event details...</p>}
     {selected && <>
       {financeError && <p role="alert" className="error">Financial data could not be loaded. {financeError}</p>}
       {page === 'event' && <EventOverview event={selected} expenses={expenses[selected.id]} income={income} />}
-      {page === 'budget' && <BudgetPanel key={selected.id} eventId={selected.id} />}
-      {page === 'purchases' && <PurchasePanel key={selected.id} eventId={selected.id} />}
-      {page === 'expenses' && <section className="panel"><ExpensePanel key={selected.id} eventId={selected.id} onSaved={() => setRevision((value) => value + 1)} /></section>}
-      {page === 'income' && <section className="panel"><IncomePanel key={selected.id} eventId={selected.id} revision={revision} /></section>}
+      {page === 'members' && <EventTeamPanel key={selected.id} eventId={selected.id} />}
+      {page === 'budget' && isChair && <BudgetPanel key={selected.id} eventId={selected.id} />}
+      {page === 'purchases' && canManagePurchases && <PurchasePanel key={selected.id} eventId={selected.id} />}
+      {page === 'expenses' && canManageFinance && <section className="panel"><ExpensePanel key={selected.id} eventId={selected.id} onSaved={() => setRevision((value) => value + 1)} /></section>}
+      {page === 'income' && canManageFinance && <section className="panel"><IncomePanel key={selected.id} eventId={selected.id} revision={revision} /></section>}
     </>}
   </AppShell>
 }

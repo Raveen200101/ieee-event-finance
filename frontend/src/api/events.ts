@@ -1,16 +1,7 @@
 import type { CreateEventRequest, EventRecord } from '../types/event'
 
-export async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, options)
-  if (!response.ok) {
-    const problem = await response.json().catch(() => null)
-    const details = problem?.errors
-      ? Object.values(problem.errors).join('. ')
-      : problem?.detail
-    throw new Error(details || 'Unable to complete the request. Please try again.')
-  }
-  return response.json() as Promise<T>
-}
+import { request } from './client'
+export { request } from './client'
 
 export function listEvents() {
   return request<EventRecord[]>('/api/events')
